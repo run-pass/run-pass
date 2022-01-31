@@ -95,15 +95,15 @@ export function App() {
                 </Row>
                 <Row>
                     <Col sm={{ span: 12 }}>
-                        <InputGroup className="mb-3">
+                        <InputGroup  className="mb-3">
                             <InputGroup.Text id="basic-addon1">A-</InputGroup.Text>
                             <FormControl
                                 value={parkRunId}
-                                onChange={(e) => setParkRunId(e.target.value)}
+                                onChange={(e) => setParkRunId(e.target.value.replace(/\D/g,''))}
                                 placeholder="parkrun ID (omit the A)"
                                 aria-label="parkrun ID"
                                 aria-describedby="basic-addon1"
-                                type="number"
+                                inputMode="numeric"
                             />
 
                         </InputGroup>
