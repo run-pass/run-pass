@@ -24,6 +24,7 @@ jobs:
         with:
           workingDirectory: ./cloudflare-worker
           apiToken: ${{ secrets.CF_API_TOKEN }}
+          environment: 'production'
           secrets: |
               SIGNER_CERT
               SIGNER_KEY
@@ -36,10 +37,3 @@ jobs:
           SIGNER_KEY_PASSPHRASE: ${{ secrets.SIGNER_KEY_PASSPHRASE }}
           PASS_TYPE_IDENTIFIER: ${{ secrets.PASS_TYPE_IDENTIFIER }}
           TEAM_IDENTIFIER: ${{ secrets.TEAM_IDENTIFIER }}
-
-
-              echo $SIGNER_CERT | wrangler secret put SIGNER_CERT
-              echo $SIGNER_KEY | wrangler secret put SIGNER_KEY
-              echo $SIGNER_KEY_PASSPHRASE | wrangler secret put SIGNER_KEY_PASSPHRASE
-              echo $PASS_TYPE_IDENTIFIER | wrangler secret put PASS_TYPE_IDENTIFIER
-              echo $TEAM_IDENTIFIER | wrangler secret put TEAM_IDENTIFIER
