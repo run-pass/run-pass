@@ -7,10 +7,12 @@ import { pass } from './assets/pass';
 import wwdrpem from './assets/wwdr.pem';
 import { Router } from 'itty-router'
 
+const secrets = globalThis as any;
+
 const wwdr = wwdrpem;
-const signerCert = SIGNER_CERT;
-const signerKey = SIGNER_KEY;
-const signerKeyPassphrase = SIGNER_KEY_PASSPHRASE;
+const signerCert = secrets.SIGNER_CERT;
+const signerKey = secrets.SIGNER_KEY;
+const signerKeyPassphrase = secrets.SIGNER_KEY_PASSPHRASE;
 
 const locationMapping = Object.fromEntries(parkRunLocationData.map(d => [d.properties.eventname, d]))
 

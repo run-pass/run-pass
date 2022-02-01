@@ -4,10 +4,12 @@ function notEmpty<TValue>(value: TValue | null | undefined): value is TValue {
     return value !== null && value !== undefined;
 }
 
+const secrets = globalThis as any;
+
 export const pass: (barcode: string, locations?: string[]) => PassProps = (barcode, locations) => ({
     "formatVersion": 1,
-    "passTypeIdentifier": PASS_TYPE_IDENTIFIER,
-    "teamIdentifier": TEAM_IDENTIFIER,
+    "passTypeIdentifier": secrets.PASS_TYPE_IDENTIFIER,
+    "teamIdentifier": secrets.TEAM_IDENTIFIER,
     "organizationName": "getrunpass.com",
     "description": "Pass for your parkrun barcode",
     "backgroundColor": "rgb(73, 93, 78)",
