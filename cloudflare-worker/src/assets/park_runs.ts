@@ -12,7 +12,7 @@ export const parkRunLocationData: {
         "eventname": string,
         "EventLongName": string,
         "EventShortName": string,
-        "LocalisedEventLongName": string,
+        "LocalisedEventLongName": string | null,
         "countrycode": number,
         "seriesid": number,
         "EventLocation": string,

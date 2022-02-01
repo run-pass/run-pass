@@ -1,0 +1,43 @@
+name: publish cloudflare worker
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy
+    steps:
+      - uses: actions/setup-node@v2
+        with:
+          node-version: 'lts/*'
+      
+      - uses: actions/checkout@master
+
+      - run: npm ci
+
+      - name: Publish
+        uses: cloudflare/wrangler-action@1.3.0
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          secrets: |
+              SIGNER_CERT
+              SIGNER_KEY
+              SIGNER_KEY_PASSPHRASE
+              PASS_TYPE_IDENTIFIER
+              TEAM_IDENTIFIER
+        env:
+          SIGNER_CERT: ${{ secrets.SIGNER_CERT }}
+          SIGNER_KEY: ${{ secrets.SIGNER_KEY }}
+          SIGNER_KEY_PASSPHRASE: ${{ secrets.SIGNER_KEY_PASSPHRASE }}
+          PASS_TYPE_IDENTIFIER: ${{ secrets.PASS_TYPE_IDENTIFIER }}
+          TEAM_IDENTIFIER: ${{ secrets.TEAM_IDENTIFIER }}
+
+
+              echo $SIGNER_CERT | wrangler secret put SIGNER_CERT
+              echo $SIGNER_KEY | wrangler secret put SIGNER_KEY
+              echo $SIGNER_KEY_PASSPHRASE | wrangler secret put SIGNER_KEY_PASSPHRASE
+              echo $PASS_TYPE_IDENTIFIER | wrangler secret put PASS_TYPE_IDENTIFIER
+              echo $TEAM_IDENTIFIER | wrangler secret put TEAM_IDENTIFIER

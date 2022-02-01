@@ -1,9 +1,13 @@
-import { PassProps } from "passkit-generator";
+import { Field, PassProps } from "passkit-generator";
+
+function notEmpty<TValue>(value: TValue | null | undefined): value is TValue {
+    return value !== null && value !== undefined;
+}
 
 export const pass: (barcode: string, locations?: string[]) => PassProps = (barcode, locations) => ({
     "formatVersion": 1,
-    "passTypeIdentifier": "pass.com.runpass",
-    "teamIdentifier": "29C784RGJ8",
+    "passTypeIdentifier": PASS_TYPE_IDENTIFIER,
+    "teamIdentifier": TEAM_IDENTIFIER,
     "organizationName": "getrunpass.com",
     "description": "Pass for your parkrun barcode",
     "backgroundColor": "rgb(73, 93, 78)",
@@ -46,7 +50,7 @@ export const pass: (barcode: string, locations?: string[]) => PassProps = (barco
                 "label": "",
                 "value": "Version 1.0.0"
             }
-        ].filter(f => f),
+        ].filter(notEmpty),
         "secondaryFields": [
             {
                 "key": "header9",

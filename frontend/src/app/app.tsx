@@ -2,7 +2,7 @@
 import * as React from "react";
 import { useState } from "react";
 import { Button, Col, Container, Form, FormControl, InputGroup, NavLink, Row } from "react-bootstrap";
-import { parkRunLocationData } from "../../../pass-gen/src/assets/park_runs";
+import { parkRunLocationData } from "../../../cloudflare-worker/src/assets/park_runs";
 import * as haversine from "haversine"
 
 export interface PassbookLocation {
@@ -72,7 +72,7 @@ export function App() {
     const goToPass = () => {
         const locations: string = selectedLocations.map(d => d.properties.eventname).join("&locations=");
 
-        window.location.href = `https://api.getrunpass.com/passbook?barcode=A${parkRunId}&locations=${locations}`
+        window.location.href = `https://api.getrunpass.com/passbook?barcode=A${parkRunId}` + (locations ? `&locations=${locations}` : "")
     }
 
     return (
