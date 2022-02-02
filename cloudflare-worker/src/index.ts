@@ -25,7 +25,7 @@ addEventListener('fetch', event =>
 )
 
 router.get("/github", ({ url }) => {
-  return Response.redirect("https://github.com/run-pass/run-pass.github.io/", 307)
+  return Response.redirect("https://github.com/run-pass/run-pass/", 307)
 })
 
 router.get("/passbook", ({ url }) => {
