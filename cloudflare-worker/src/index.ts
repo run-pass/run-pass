@@ -1,6 +1,6 @@
 import { Buffer } from "buffer";
 import { PKPass } from "passkit-generator";
-import { parkRunLocationData } from './assets/park_runs';
+import { parkRunLocationData } from '../../frontend/src/assets/park_runs';
 import { v4 as uuidv4 } from 'uuid';
 import icon from './assets/icon.png';
 import { pass } from './assets/pass';

@@ -2,7 +2,7 @@
 import * as React from "react";
 import { useState } from "react";
 import { Button, Col, Container, Form, FormControl, InputGroup, NavLink, Row } from "react-bootstrap";
-import { parkRunLocationData } from "../../../cloudflare-worker/src/assets/park_runs";
+import { parkRunLocationData } from "../assets/park_runs";
 import * as haversine from "haversine"
 
 export interface PassbookLocation {
