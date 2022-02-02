@@ -13,4 +13,11 @@ webpack_config = "webpack.config.js"
 zone_id = "28de50e1f2392491729f9ccb9d189279"
 
 # The route pattern your Workers application will be served at
-route = "api.getrunpass.com/*"
+route = "prod-api.getrunpass.com/*"
+
+[env.development]
+# The ID of the domain to deploying to
+zone_id = "28de50e1f2392491729f9ccb9d189279"
+
+# The route pattern your Workers application will be served at
+route = "dev-api.getrunpass.com/*"
