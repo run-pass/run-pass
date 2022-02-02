@@ -72,7 +72,7 @@ export function App() {
     const goToPass = () => {
         const locations: string = selectedLocations.map(d => d.properties.eventname).join("&locations=");
 
-        window.location.href = `https://api.getrunpass.com/passbook?barcode=A${parkRunId}` + (locations ? `&locations=${locations}` : "")
+        window.location.href = `https://prod-api.getrunpass.com/passbook?barcode=A${parkRunId}` + (locations ? `&locations=${locations}` : "")
     }
 
     return (
