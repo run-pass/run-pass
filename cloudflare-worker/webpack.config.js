@@ -12,10 +12,24 @@ module.exports = {
         exclude: /node_modules/,
       },
       {
-        test: /\.(png|pem)$/i,
+        test: /\.pem$/i,
         use: [
           {
             loader: 'raw-loader',
+          },
+        ],
+      },
+      {
+        test: /\.png$/i,
+        use: [
+          {
+            loader: 'url-loader',
+            options: {
+              encoding: false,
+              generator: content => {
+                return content
+              },
+            },
           },
         ],
       },
