@@ -25,7 +25,7 @@
   "dependencies": {
     "buffer": "^6.0.3",
     "itty-router": "^2.4.10",
-    "passkit-generator": "github:billytrend/passkit-generator#Joi.binary-check",
+    "passkit-generator": "^3.1.4",
     "uuid": "^8.3.2"
   },
   "browser": {
