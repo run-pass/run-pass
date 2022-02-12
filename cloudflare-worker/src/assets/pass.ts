@@ -50,7 +50,7 @@ export const pass: (barcode: string, locations?: string[]) => PassProps = (barco
             {
                 "key": "4",
                 "label": "",
-                "value": "Version 1.0.0"
+                "value": "Version 1.1.0"
             }
         ].filter(notEmpty),
         "secondaryFields": [
