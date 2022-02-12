@@ -71,7 +71,13 @@ router.get('/passbook', ({ url }) => {
         message: barcode,
         messageEncoding: 'iso-8859-1',
         altText: barcode,
-      }
+      },
+      {
+        format: 'PKBarcodeFormatQR',
+        message: barcode,
+        messageEncoding: 'iso-8859-1',
+        altText: barcode,
+      },
     )
 
     return new Response(passObj.getAsBuffer(), {
