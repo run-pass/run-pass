@@ -1,6 +1,7 @@
 name: publish cloudflare worker
 
 on:
+  workflow_dispatch: {}
   push:
     branches:
       - main
