@@ -55,7 +55,7 @@ export const pass: (barcode: string, locations?: string[], name?: string) => Pas
         ].filter(notEmpty),
         "secondaryFields": [
             {
-                "key": "header10",
+                "key": "header9",
                 "label": "parkrun ID number",
                 "value": barcode,
             },
