@@ -15,6 +15,7 @@ export interface PassbookLocation {
 
 export function App() {
     const [parkRunId, setParkRunId] = useState("");
+    const [name, setName] = useState("");
     const [locationsWithProximity, setLocationsWithProximity] = useState(undefined);
     const [selectedLocations, setSelectedLocations] = useState([]);
     const [currentIndex, setCurrentIndex] = useState("0");
@@ -71,8 +72,8 @@ export function App() {
 
     const goToPass = () => {
         const locations: string = selectedLocations.map(d => d.properties.eventname).join("&locations=");
-
-        window.location.href = `https://prod-api.getrunpass.com/passbook?barcode=A${parkRunId}` + (locations ? `&locations=${locations}` : "")
+        console.log(`https://prod-api.getrunpass.com/passbook?barcode=A${parkRunId}` + (name ? `&name=${name}` : "") + (locations ? `&locations=${locations}` : ""))
+        window.location.href = `https://prod-api.getrunpass.com/passbook?barcode=A${parkRunId}` + (name ? `&name=${name}` : "") + (locations ? `&locations=${locations}` : "")
     }
 
     return (
@@ -90,20 +91,39 @@ export function App() {
                 </Row>
                 <Row style={{ marginBottom: "10px" }}>
                     <Col sm={{ span: 12 }}>
-                        <b>Required step:</b> Please enter your parkrun ID number. This is the number that appears after the letter "A" below your barcode. If you can't find it, parkrun has <a target="_blank" href="https://support.parkrun.com/hc/en-us/articles/200566243-What-is-my-parkrun-ID-number-">instructions</a>.
+                        <b>Required step:</b> please enter your parkrun ID number. This is the number that appears after the letter "A" below your barcode. If you can't find it, parkrun has <a target="_blank" href="https://support.parkrun.com/hc/en-us/articles/200566243-What-is-my-parkrun-ID-number-">instructions</a>.
                     </Col>
                 </Row>
                 <Row>
                     <Col sm={{ span: 12 }}>
-                        <InputGroup  className="mb-3">
+                        <InputGroup className="mb-3">
                             <InputGroup.Text id="basic-addon1">A-</InputGroup.Text>
                             <FormControl
                                 value={parkRunId}
-                                onChange={(e) => setParkRunId(e.target.value.replace(/\D/g,''))}
+                                onChange={(e) => setParkRunId(e.target.value.replace(/\D/g, ''))}
                                 placeholder="parkrun ID (omit the A)"
                                 aria-label="parkrun ID"
                                 aria-describedby="basic-addon1"
                                 inputMode="numeric"
+                            />
+                        </InputGroup>
+
+                    </Col>
+                </Row>
+                <Row style={{ marginBottom: "10px" }}>
+                    <Col sm={{ span: 12 }}>
+                        <b>Optional step:</b> you may enter a name to be shown on the pass. Useful if you need to store multiple passes on one phone.
+                    </Col>
+                </Row>
+                <Row>
+                    <Col sm={{ span: 12 }}>
+                        <InputGroup className="mb-3">
+                            <FormControl
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                placeholder="Name"
+                                aria-label="name"
+                                aria-describedby="basic-addon1"
                             />
 
                         </InputGroup>
@@ -112,7 +132,7 @@ export function App() {
                 </Row>
                 <Row style={{ marginBottom: "10px" }}>
                     <Col sm={{ span: 12 }}>
-                        <b>Optional step:</b> Passbook allows you to set up to 10 relevant locations which will cause the pass to show up on your homescreen when you are near that location. If you would like this functionality please add up to 10 parkruns to your pass.
+                        <b>Optional step:</b> passbook allows you to set up to 10 relevant locations which will cause the pass to show up on your homescreen when you are near that location. If you would like this functionality please add up to 10 parkruns to your pass.
                     </Col>
                 </Row>
                 {
