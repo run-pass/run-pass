@@ -33,13 +33,14 @@ router.get('/passbook', ({ url }) => {
   const reqUrl = new URL(url)
 
   const barcode = reqUrl.searchParams.get('barcode')!
+  const name = reqUrl.searchParams.get('name')!
   const locations: string[] = [reqUrl.searchParams.getAll('locations')].flat()
 
   try {
     const passObj = new PKPass(
       {
         'pass.json': Buffer.from(
-          JSON.stringify(pass(barcode, locations)),
+          JSON.stringify(pass(barcode, locations, name)),
           'utf-8',
         ),
         'icon.png': Buffer.from(icon),

@@ -1,4 +1,4 @@
-import { Field, PassProps } from "passkit-generator";
+import { PassProps } from "passkit-generator";
 
 function notEmpty<TValue>(value: TValue | null | undefined): value is TValue {
     return value !== null && value !== undefined;
@@ -6,7 +6,7 @@ function notEmpty<TValue>(value: TValue | null | undefined): value is TValue {
 
 const secrets = globalThis as any;
 
-export const pass: (barcode: string, locations?: string[]) => PassProps = (barcode, locations) => ({
+export const pass: (barcode: string, locations?: string[], name?: string) => PassProps = (barcode, locations, name) => ({
     "formatVersion": 1,
     "passTypeIdentifier": secrets.PASS_TYPE_IDENTIFIER,
     "teamIdentifier": secrets.TEAM_IDENTIFIER,
@@ -55,10 +55,15 @@ export const pass: (barcode: string, locations?: string[]) => PassProps = (barco
         ].filter(notEmpty),
         "secondaryFields": [
             {
-                "key": "header9",
+                "key": "header10",
                 "label": "parkrun ID number",
                 "value": barcode,
-            }
+            },
+            ...(name ? [{
+                "key": "header10",
+                "label": "runner name",
+                "value": name,
+            }] : [])
         ],
         "auxiliaryFields": [],
     }
