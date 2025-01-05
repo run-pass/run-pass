@@ -91,7 +91,7 @@ export function App() {
                 </Row>
                 <Row style={{ marginBottom: "10px" }}>
                     <Col sm={{ span: 12 }}>
-                        <b>Required step:</b> please enter your parkrun ID number. This is the number that appears after the letter "A" below your barcode. If you can't find it, parkrun has <a target="_blank" href="https://support.parkrun.com/hc/en-us/articles/200566243-What-is-my-parkrun-ID-number-">instructions</a>.
+                        <b>Required step:</b> please enter your parkrun ID number. This is the number that appears after the letter "A" below your barcode. If you can't find it, parkrun has <a target="_blank" href="https://support.parkrun.com/hc/en-us/articles/205632182-2-1-How-do-I-access-my-parkrun-profile">instructions</a>.
                     </Col>
                 </Row>
                 <Row>
