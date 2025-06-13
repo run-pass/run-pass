@@ -1,4 +1,4 @@
-
+import "./darkmode.css";
 import * as React from "react";
 import { useState } from "react";
 import { Button, Col, Container, Form, FormControl, InputGroup, NavLink, Row } from "react-bootstrap";

@@ -1,0 +1,64 @@
+/* Dark mode styles for the app, using prefers-color-scheme */
+:root {
+  --background: #fff;
+  --foreground: #222;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #181a1b;
+    --foreground: #d0d0d0;
+  }
+  body, .App, .container {
+    color: var(--foreground) !important;
+  }
+}
+
+body, .App, .container {
+  background: var(--background) !important;
+  color: var(--foreground) !important;
+}
+
+input, select, textarea, .form-control, .form-select {
+  background: var(--background) !important;
+  color: var(--foreground) !important;
+  border-color: #444 !important;
+}
+
+.btn, .btn-outline-secondary, .btn-outline-danger, .btn-success {
+  color: var(--foreground) !important;
+}
+
+/* Optional: tweak Bootstrap for dark mode */
+.btn-success {
+  background-color: #228b22 !important;
+  border-color: #228b22 !important;
+  color: #fff !important;
+}
+
+.btn-outline-secondary {
+  border-color: #888 !important;
+}
+
+.btn-outline-danger {
+  border-color: #c00 !important;
+}
+
+.input-group-text, .form-control:focus, .form-control {
+  background: var(--background) !important;
+  color: var(--foreground) !important;
+  border-color: #444 !important;
+}
+
+.input-group-text {
+  border-right: 0 !important;
+}
+
+/* Make the A- box more visually appealing in dark mode */
+@media (prefers-color-scheme: dark) {
+  .input-group-text {
+    background: #222 !important;
+    color: #f1f1f1 !important;
+    border-color: #444 !important;
+  }
+}
