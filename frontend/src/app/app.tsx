@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Button, Col, Container, Form, FormControl, InputGroup, NavLink, Row } from "react-bootstrap";
 import { parkRunLocationData } from "../assets/park_runs";
 import * as haversine from "haversine"
+import Select from "react-select";
+import { components } from "react-select";
 
 export interface PassbookLocation {
     relevantText?: string;
@@ -76,6 +78,48 @@ export function App() {
         window.location.href = `https://prod-api.getrunpass.com/passbook?barcode=A${parkRunId}` + (name ? `&name=${name}` : "") + (locations ? `&locations=${locations}` : "")
     }
 
+    // Custom styles for react-select to support dark mode
+    const selectStyles = {
+        control: (provided, state) => ({
+            ...provided,
+            backgroundColor: state.isFocused ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? '#181a1b' : '#fff') : (window.matchMedia('(prefers-color-scheme: dark)').matches ? '#181a1b' : '#fff'),
+            color: window.matchMedia('(prefers-color-scheme: dark)').matches ? '#d0d0d0' : '#222',
+            borderColor: window.matchMedia('(prefers-color-scheme: dark)').matches ? '#444' : '#ccc',
+            boxShadow: state.isFocused ? '0 0 0 2px #2563eb' : provided.boxShadow,
+        }),
+        menu: (provided) => ({
+            ...provided,
+            backgroundColor: window.matchMedia('(prefers-color-scheme: dark)').matches ? '#23272a' : '#fff',
+            color: window.matchMedia('(prefers-color-scheme: dark)').matches ? '#d0d0d0' : '#222',
+        }),
+        option: (provided, state) => ({
+            ...provided,
+            backgroundColor: state.isSelected
+                ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? '#2563eb' : '#e0e7ff')
+                : state.isFocused
+                ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? '#2d3748' : '#f3f4f6')
+                : (window.matchMedia('(prefers-color-scheme: dark)').matches ? '#23272a' : '#fff'),
+            color: window.matchMedia('(prefers-color-scheme: dark)').matches ? '#d0d0d0' : '#222',
+        }),
+        multiValue: (provided) => ({
+            ...provided,
+            backgroundColor: window.matchMedia('(prefers-color-scheme: dark)').matches ? '#2d3748' : '#e5e7eb',
+            color: window.matchMedia('(prefers-color-scheme: dark)').matches ? '#d0d0d0' : '#222',
+        }),
+        multiValueLabel: (provided) => ({
+            ...provided,
+            color: window.matchMedia('(prefers-color-scheme: dark)').matches ? '#d0d0d0' : '#222',
+        }),
+        multiValueRemove: (provided) => ({
+            ...provided,
+            color: window.matchMedia('(prefers-color-scheme: dark)').matches ? '#d0d0d0' : '#222',
+            ':hover': {
+                backgroundColor: window.matchMedia('(prefers-color-scheme: dark)').matches ? '#444' : '#cbd5e1',
+                color: window.matchMedia('(prefers-color-scheme: dark)').matches ? '#fff' : '#222',
+            },
+        }),
+    };
+
     return (
         <div className="App">
             <Container>
@@ -135,40 +179,53 @@ export function App() {
                         <b>Optional step:</b> passbook allows you to set up to 10 relevant locations which will cause the pass to show up on your homescreen when you are near that location. If you would like this functionality please add up to 10 parkruns to your pass.
                     </Col>
                 </Row>
-                {
-                    navigator.geolocation && <Row style={{ marginBottom: "10px" }}>
+                {navigator.geolocation && (
+                    <Row style={{ marginBottom: "10px" }}>
                         <Col sm={{ span: 12 }}>
-                            <Button onClick={setToTop10Adult} variant="outline-secondary">Use my 10 closest adult parkruns</Button>
+                            <div style={{ display: "flex", flexDirection: "row", gap: "10px", width: "100%" }}>
+                                <Button onClick={setToTop10Adult} variant="outline-secondary">Use my 10 closest adult parkruns</Button>
+                                <Button onClick={setToTop10Junior} variant="outline-secondary">Use my 10 closest junior parkruns</Button>
+                                <Button onClick={async () => {
+                                    setIsLoadingProximities(true);
+                                    const locs = await addProximity();
+                                    setLocationsWithProximity(locs);
+                                    setIsLoadingProximities(false);
+                                }} variant="outline-secondary">Sort by nearest</Button>
+                            </div>
                         </Col>
                     </Row>
-                }
-                {
-                    navigator.geolocation && <Row style={{ marginBottom: "10px" }}>
-                        <Col sm={{ span: 12 }}>
-                            <Button onClick={setToTop10Junior} variant="outline-secondary">Use my 10 closest junior parkruns</Button>
-                        </Col>
-                    </Row>
-                }
+                )}
                 <Row style={{ marginBottom: "10px" }}>
                     <Col sm={{ span: 12 }}>
-                        <div style={{ display: "flex", flexDirection: "row", gridGap: "10px" }}>
-                            <Form.Select disabled={selectedLocations.length >= 10} value={currentIndex} placeholder="Select a parkrun to add" onChange={(e) => addSelected(e.target.value)} aria-label="Default select example">
-                                {locations.map((pr, i) => <option id={i} value={i}>{pr.properties.EventShortName}</option>)}
-                            </Form.Select>
+                        <div style={{ display: "flex", flexDirection: "row", gap: "10px", width: "100%", alignItems: "stretch" }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <Select
+                                    isMulti
+                                    options={locations.map((pr, i) => ({ value: i, label: pr.properties.EventShortName }))}
+                                    value={selectedLocations.map(sel => {
+                                        const idx = locations.findIndex(l => l === sel);
+                                        return { value: idx, label: sel.properties.EventShortName };
+                                    })}
+                                    onChange={opts => {
+                                        const indices = (opts || []).map(opt => opt.value).slice(0, 10);
+                                        setSelectedLocations(indices.map(i => locations[i]));
+                                    }}
+                                    closeMenuOnSelect={false}
+                                    isOptionDisabled={() => selectedLocations.length >= 10}
+                                    placeholder="Select up to 10 parkruns..."
+                                    aria-label="Select parkruns"
+                                    maxMenuHeight={300}
+                                    styles={{
+                                        ...selectStyles,
+                                        container: (provided) => ({ ...provided, width: "100%" }),
+                                        loadingMessage: (provided) => ({ ...provided, color: window.matchMedia('(prefers-color-scheme: dark)').matches ? '#d0d0d0' : '#222' })
+                                    }}
+                                    isLoading={isLoadingProximities}
+                                />
+                            </div>
                         </div>
                     </Col>
                 </Row>
-                {isLoadingProximities && <Row style={{ marginBottom: "10px" }}>
-                    <Col sm={{ span: 12 }}>
-                        Calculating distances...
-                    </Col>
-                </Row>}
-                {selectedLocations.map((selected, i) => <Row style={{ marginBottom: "10px" }}>
-                    <Col sm={{ span: 12 }}>
-                        <div style={{ display: "flex", flexDirection: "row", gridGap: "10px", justifyContent: "space-between" }}>{selected.properties.EventShortName}
-                            <Button onClick={removeSelected.bind(null, i)} variant="outline-danger">Remove</Button></div>
-                    </Col>
-                </Row>)}
                 <Row style={{ marginBottom: "10px" }}>
                     <Col sm={{ span: 12 }}>
                         <Button
