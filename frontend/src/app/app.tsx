@@ -1,19 +1,17 @@
 import "./darkmode.css";
 import * as React from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button, Col, Container, Form, FormControl, InputGroup, NavLink, Row } from "react-bootstrap";
-import { parkRunLocationData } from "../assets/park_runs";
 import * as haversine from "haversine"
 import Select from "react-select";
 import { components } from "react-select";
-
-export interface PassbookLocation {
+ interface PassbookLocation {
     relevantText?: string;
     altitude?: number;
     latitude: number;
     longitude: number;
 }
-
+import events from "../assets/events.json";
 
 export function App() {
     const [parkRunId, setParkRunId] = useState("");
@@ -21,14 +19,40 @@ export function App() {
     const [locationsWithProximity, setLocationsWithProximity] = useState(undefined);
     const [selectedLocations, setSelectedLocations] = useState([]);
     const [currentIndex, setCurrentIndex] = useState("0");
-    const [isLoadingProximities, setIsLoadingProximities] = useState(false);
+    const [isLoadingLocations, setIsLoadingLocations] = useState(false);
+    const [remoteLocations, setRemoteLocations] = useState(undefined);
 
-    const locations = locationsWithProximity || parkRunLocationData.sort((a, b) => (a.properties.EventShortName > b.properties.EventShortName ? 1 : -1));
+    useEffect(() => {
+        async function fetchLocations() {
+            setIsLoadingLocations(true);
+            try {
+                const res = await fetch("https://prod-api.getrunpass.com/events.json");
+                if (!res.ok) throw new Error("Failed to fetch remote events.json");
+                const data = await res.json();
+                // Use data.events.features if present, else fallback
+                if (data && data.events && Array.isArray(data.events.features)) {
+                    setRemoteLocations(data.events.features);
+                } else {
+                    throw new Error("Unexpected events.json format");
+                }
+            } catch (e) {
+                setRemoteLocations(events.events.features);
+                console.error("Error fetching remote locations, falling back to local asset:", e);
+            } finally {
+                setIsLoadingLocations(false);
+            }
+        }
+        fetchLocations();
+    }, []);
+
+    // Use remoteLocations only; do not fallback to local asset
+    const locations = locationsWithProximity || (remoteLocations ? remoteLocations.sort((a, b) => (a.properties.EventShortName > b.properties.EventShortName ? 1 : -1)) : []);
 
     const addProximity = async () => {
         try {
             const currentPos: GeolocationPosition = await new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject));
-            return parkRunLocationData
+            if (!remoteLocations) return [];
+            return remoteLocations
                 .map(pr => ({ ...pr, proximity: haversine({ longitude: currentPos.coords.longitude, latitude: currentPos.coords.latitude }, { longitude: pr.geometry.coordinates[0], latitude: pr.geometry.coordinates[1] }) }))
                 .sort((a, b) => a.proximity - b.proximity)
         } catch (e) {
@@ -41,13 +65,13 @@ export function App() {
             return locationsWithProximity
         }
 
-        setIsLoadingProximities(true);
+        setIsLoadingLocations(true);
 
         const locs = await addProximity();
 
         setLocationsWithProximity(locs);
 
-        setIsLoadingProximities(false);
+        setIsLoadingLocations(false);
 
         return locs
     }
@@ -97,8 +121,8 @@ export function App() {
             backgroundColor: state.isSelected
                 ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? '#2563eb' : '#e0e7ff')
                 : state.isFocused
-                ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? '#2d3748' : '#f3f4f6')
-                : (window.matchMedia('(prefers-color-scheme: dark)').matches ? '#23272a' : '#fff'),
+                    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? '#2d3748' : '#f3f4f6')
+                    : (window.matchMedia('(prefers-color-scheme: dark)').matches ? '#23272a' : '#fff'),
             color: window.matchMedia('(prefers-color-scheme: dark)').matches ? '#d0d0d0' : '#222',
         }),
         multiValue: (provided) => ({
@@ -186,10 +210,10 @@ export function App() {
                                 <Button onClick={setToTop10Adult} variant="outline-secondary">Use my 10 closest adult parkruns</Button>
                                 <Button onClick={setToTop10Junior} variant="outline-secondary">Use my 10 closest junior parkruns</Button>
                                 <Button onClick={async () => {
-                                    setIsLoadingProximities(true);
+                                    setIsLoadingLocations(true);
                                     const locs = await addProximity();
                                     setLocationsWithProximity(locs);
-                                    setIsLoadingProximities(false);
+                                    setIsLoadingLocations(false);
                                 }} variant="outline-secondary">Sort by nearest</Button>
                             </div>
                         </Col>
@@ -220,7 +244,7 @@ export function App() {
                                         container: (provided) => ({ ...provided, width: "100%" }),
                                         loadingMessage: (provided) => ({ ...provided, color: window.matchMedia('(prefers-color-scheme: dark)').matches ? '#d0d0d0' : '#222' })
                                     }}
-                                    isLoading={isLoadingProximities}
+                                    isLoading={isLoadingLocations}
                                 />
                             </div>
                         </div>
@@ -229,7 +253,7 @@ export function App() {
                 <Row style={{ marginBottom: "10px" }}>
                     <Col sm={{ span: 12 }}>
                         <Button
-                            disabled={isLoadingProximities || !parkRunId}
+                            disabled={isLoadingLocations || !parkRunId}
                             variant="success"
                             onClick={goToPass}>Generate Pass</Button>
                     </Col>
