@@ -107,6 +107,7 @@ router.get('/events.json', async () => {
     status: response.status,
     headers: {
       'Content-Type': response.headers.get('content-type') || 'application/json',
+      'Access-Control-Allow-Origin': '*',
     },
   })
 })
