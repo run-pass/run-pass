@@ -91,7 +91,6 @@ router.get('/passbook', ({ url }) => {
 
 router.get('/events.json', async () => {
   const response = await fetch('https://images.parkrun.com/events.json', {
-    cache: 'default',
     credentials: 'omit',
     headers: {
       'Accept': 'application/json, text/javascript, */*; q=0.01',
@@ -103,7 +102,6 @@ router.get('/events.json', async () => {
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3 Safari/605.1.15',
     },
     method: 'GET',
-    mode: 'cors',
     redirect: 'follow',
     referrer: 'https://www.parkrun.com/',
     referrerPolicy: 'strict-origin-when-cross-origin',
