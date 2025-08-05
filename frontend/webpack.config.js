@@ -1,9 +1,13 @@
 const HtmlWebpackPlugin = require("html-webpack-plugin");
+const { BundleAnalyzerPlugin } = require("webpack-bundle-analyzer");
+const TerserPlugin = require("terser-webpack-plugin");
+const CssMinimizerPlugin = require("css-minimizer-webpack-plugin");
 const path = require("path");
+const RobotstxtPlugin = require("robotstxt-webpack-plugin");
 
 module.exports = {
   mode: "production", // Enable production optimizations
-  target: "web",
+  target: "browserslist",
   entry: "./src/index.tsx",
   cache: {
     type: "filesystem", // Enable persistent caching
@@ -47,6 +51,18 @@ module.exports = {
       chunks: "all", // Code splitting for all chunks
     },
     runtimeChunk: "single", // Separate runtime chunk
+    minimize: true,
+    minimizer: [
+      new TerserPlugin({
+        terserOptions: {
+          format: {
+            comments: false,
+          },
+        },
+        extractComments: false,
+      }),
+      new CssMinimizerPlugin(),
+    ],
   },
   plugins: [
     new HtmlWebpackPlugin({
@@ -64,6 +80,15 @@ module.exports = {
         minifyCSS: true,
         minifyURLs: true,
       },
+    }),
+    new BundleAnalyzerPlugin(),
+    new RobotstxtPlugin({
+      policy: [
+        {
+          userAgent: '*',
+          allow: '/',
+        },
+      ],
     }),
   ],
 };
