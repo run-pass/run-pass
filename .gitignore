@@ -1,3 +1,5 @@
+dist
+
 # compiled output
 node_modules
 pass-gen/dist

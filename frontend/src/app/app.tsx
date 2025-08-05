@@ -11,7 +11,6 @@ import { components } from "react-select";
     latitude: number;
     longitude: number;
 }
-import events from "../assets/events.json";
 
 export function App() {
     const [parkRunId, setParkRunId] = useState("");
@@ -36,8 +35,7 @@ export function App() {
                     throw new Error("Unexpected events.json format");
                 }
             } catch (e) {
-                setRemoteLocations(events.events.features);
-                console.error("Error fetching remote locations, falling back to local asset:", e);
+                console.error("Error fetching run locations:", e);
             } finally {
                 setIsLoadingLocations(false);
             }
