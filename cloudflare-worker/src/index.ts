@@ -87,16 +87,27 @@ router.get('/passbook', async ({ url }) => {
   }
 })
 
-router.get('/events.json', async () => {
-  const data = await getEventsJson();
+router.get('/events.json', async (req) => {
+  const { data, etag } = await getEventsJson();
+  const reqEtag = (req as any).headers.get('if-none-match');
+  if (etag && reqEtag === etag) {
+    return new Response(null, {
+      status: 304,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        ...(etag ? { 'ETag': etag } : {}),
+      },
+    });
+  }
   return new Response(JSON.stringify(data), {
     status: 200,
     headers: {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',
+      ...(etag ? { 'ETag': etag } : {}),
     },
-  })
-})
+  });
+});
 
 // 404 for everything else
 router.all('*', () => new Response('Not Found.', { status: 404 }))

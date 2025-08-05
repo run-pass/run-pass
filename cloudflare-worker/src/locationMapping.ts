@@ -43,7 +43,7 @@ let cachedEventsJson: EventsJson | null = null;
 let cachedEtag: string | null = null;
 const EVENTS_URL = 'https://images.parkrun.com/events.json';
 
-export const getEventsJson = async (): Promise<EventsJson> => {
+export const getEventsJson = async (): Promise<{ data: EventsJson, etag: string | null }> => {
   const headers: Record<string, string> = {
     'Accept': 'application/json, text/javascript, */*; q=0.01',
     'Accept-Language': 'en-GB,en;q=0.9',
@@ -62,17 +62,17 @@ export const getEventsJson = async (): Promise<EventsJson> => {
   });
   if (response.status === 304 && cachedEventsJson) {
     // Not modified, return cached
-    return cachedEventsJson;
+    return { data: cachedEventsJson, etag: cachedEtag };
   }
   const etag = response.headers.get('etag');
   const data = await response.json() as EventsJson;
   cachedEventsJson = data;
   cachedEtag = etag;
-  return data;
+  return { data, etag };
 };
 
 export const getLocationMapping = async (): Promise<LocationMapping> => {
-  const data = await getEventsJson();
+  const { data } = await getEventsJson();
   const mapping: LocationMapping = {};
   const features = (data.events && data.events.features) ? data.events.features : [];
   for (let i = 0; i < features.length; i++) {
