@@ -1,23 +1,15 @@
-import "./darkmode.css";
+import * as haversine from "haversine";
 import * as React from "react";
-import { useState, useEffect } from "react";
-import { Button, Col, Container, Form, FormControl, InputGroup, NavLink, Row } from "react-bootstrap";
-import * as haversine from "haversine"
+import { useEffect, useState } from "react";
+import { Button, Col, Container, FormControl, InputGroup, Row } from "react-bootstrap";
 import Select from "react-select";
-import { components } from "react-select";
- interface PassbookLocation {
-    relevantText?: string;
-    altitude?: number;
-    latitude: number;
-    longitude: number;
-}
+import "./darkmode.css";
 
 export function App() {
     const [parkRunId, setParkRunId] = useState("");
     const [name, setName] = useState("");
     const [locationsWithProximity, setLocationsWithProximity] = useState(undefined);
     const [selectedLocations, setSelectedLocations] = useState([]);
-    const [currentIndex, setCurrentIndex] = useState("0");
     const [isLoadingLocations, setIsLoadingLocations] = useState(false);
     const [remoteLocations, setRemoteLocations] = useState(undefined);
 
@@ -83,16 +75,6 @@ export function App() {
     const setToTop10Adult = setToTop10.bind(null, 1)
 
     const setToTop10Junior = setToTop10.bind(null, 2)
-
-    const removeSelected = (removeAtIndex) => setSelectedLocations(selectedLocations.filter((e, i) => i !== removeAtIndex));
-
-    const addSelected = (newCurrentIndex) => {
-        setCurrentIndex(newCurrentIndex);
-
-        if (!selectedLocations.includes(locations[newCurrentIndex])) {
-            setSelectedLocations([...selectedLocations, locations[newCurrentIndex]])
-        }
-    };
 
     const goToPass = () => {
         const locations: string = selectedLocations.map(d => d.properties.eventname).join("&locations=");
