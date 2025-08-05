@@ -1,0 +1,3 @@
+packages:
+  - 'cloudflare-worker'
+  - 'frontend'
