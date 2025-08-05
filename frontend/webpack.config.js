@@ -81,7 +81,7 @@ module.exports = {
         minifyURLs: true,
       },
     }),
-    new BundleAnalyzerPlugin(),
+    // new BundleAnalyzerPlugin(),
     new RobotstxtPlugin({
       policy: [
         {
