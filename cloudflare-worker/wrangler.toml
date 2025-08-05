@@ -14,6 +14,7 @@ zone_id = "28de50e1f2392491729f9ccb9d189279"
 
 # The route pattern your Workers application will be served at
 route = "prod-api.getrunpass.com/*"
+logpush = true
 
 [env.development]
 # The ID of the domain to deploying to
@@ -21,3 +22,4 @@ zone_id = "28de50e1f2392491729f9ccb9d189279"
 
 # The route pattern your Workers application will be served at
 route = "dev-api.getrunpass.com/*"
+logpush = true
