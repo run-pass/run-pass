@@ -17,8 +17,10 @@ jobs:
       
       - uses: actions/checkout@master
 
-      - run: npm ci
-        working-directory: ./cloudflare-worker
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          runInstall: true
 
       - name: Publish
         uses: cloudflare/wrangler-action@1.3.0
