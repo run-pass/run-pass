@@ -76,10 +76,25 @@ export function App() {
 
     const setToTop10Junior = setToTop10.bind(null, 2)
 
-    const goToPass = () => {
-        const locations: string = selectedLocations.map(d => d.properties.eventname).join("&locations=");
-        console.log(`https://prod-api.getrunpass.com/passbook?barcode=A${parkRunId}` + (name ? `&name=${name}` : "") + (locations ? `&locations=${locations}` : ""))
-        window.location.href = `https://prod-api.getrunpass.com/passbook?barcode=A${parkRunId}` + (name ? `&name=${name}` : "") + (locations ? `&locations=${locations}` : "")
+    const buildWalletUrl = (path: string) => {
+        const params = new URLSearchParams();
+        params.set("barcode", `A${parkRunId}`);
+
+        if (name) {
+            params.set("name", name);
+        }
+
+        selectedLocations.forEach(location => params.append("locations", location.properties.eventname));
+
+        return `https://prod-api.getrunpass.com${path}?${params.toString()}`;
+    }
+
+    const goToAppleWallet = () => {
+        window.location.href = buildWalletUrl("/passbook");
+    }
+
+    const goToGoogleWallet = () => {
+        window.location.href = buildWalletUrl("/google-wallet");
     }
 
     // Custom styles for react-select to support dark mode
@@ -134,7 +149,7 @@ export function App() {
                 </Row>
                 <Row style={{ marginBottom: "10px" }}>
                     <Col sm={{ span: 12 }}>
-                        parkrun now <a target="_blank" href="https://blog.parkrun.com/uk/2021/11/22/scanning-from-mobile-devices/">accepts digital barcodes</a>. This app allows you to create a pass for your iPhone that has your parkrun barcode on it. If you have an issues or feedback, please <a target="_blank" href="https://github.com/run-pass/run-pass/issues/new">create an issue on github</a> or <a target="_blank" href="mailto:billy.trend@gmail.com">send me an email</a>.
+                        parkrun now <a target="_blank" href="https://blog.parkrun.com/uk/2021/11/22/scanning-from-mobile-devices/">accepts digital barcodes</a>. This app allows you to create a wallet pass with your parkrun barcode for Apple Wallet or Google Wallet. If you have an issues or feedback, please <a target="_blank" href="https://github.com/run-pass/run-pass/issues/new">create an issue on github</a> or <a target="_blank" href="mailto:billy.trend@gmail.com">send me an email</a>.
                     </Col>
                 </Row>
                 <Row style={{ marginBottom: "10px" }}>
@@ -180,7 +195,7 @@ export function App() {
                 </Row>
                 <Row style={{ marginBottom: "10px" }}>
                     <Col sm={{ span: 12 }}>
-                        <b>Optional step:</b> passbook allows you to set up to 10 relevant locations which will cause the pass to show up on your homescreen when you are near that location. If you would like this functionality please add up to 10 parkruns to your pass.
+                        <b>Optional step:</b> wallet passes allow you to set up to 10 relevant locations which can make the pass easier to surface near that location. If you would like this functionality please add up to 10 parkruns to your pass.
                     </Col>
                 </Row>
                 {navigator.geolocation && (
@@ -232,10 +247,20 @@ export function App() {
                 </Row>
                 <Row style={{ marginBottom: "10px" }}>
                     <Col sm={{ span: 12 }}>
-                        <Button
-                            disabled={isLoadingLocations || !parkRunId}
-                            variant="success"
-                            onClick={goToPass}>Generate Pass</Button>
+                        <div style={{ display: "flex", flexDirection: "row", gap: "10px", width: "100%" }}>
+                            <Button
+                                disabled={isLoadingLocations || !parkRunId}
+                                variant="success"
+                                onClick={goToAppleWallet}>
+                                Add to Apple Wallet
+                            </Button>
+                            <Button
+                                disabled={isLoadingLocations || !parkRunId}
+                                variant="primary"
+                                onClick={goToGoogleWallet}>
+                                Add to Google Wallet
+                            </Button>
+                        </div>
                     </Col>
                 </Row>
             </Container >
