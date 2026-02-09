@@ -1,0 +1,210 @@
+name: apple signing health
+
+on:
+  workflow_dispatch:
+    inputs:
+      warning_days:
+        description: Fail if the signer cert expires within this many days
+        required: false
+        default: '45'
+  schedule:
+    - cron: '0 12 * * 1'
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Evaluate Apple signing materials
+        id: health
+        env:
+          SIGNER_CERT: ${{ secrets.SIGNER_CERT }}
+          SIGNER_KEY: ${{ secrets.SIGNER_KEY }}
+          SIGNER_KEY_PASSPHRASE: ${{ secrets.SIGNER_KEY_PASSPHRASE }}
+          WARNING_DAYS: ${{ github.event.inputs.warning_days || '45' }}
+        run: |
+          set -euo pipefail
+
+          health_status="healthy"
+          health_reason=""
+          not_after=""
+          days_left=""
+
+          if [[ -z "${SIGNER_CERT:-}" || -z "${SIGNER_KEY:-}" || -z "${SIGNER_KEY_PASSPHRASE:-}" ]]; then
+            health_status="missing_secrets"
+            health_reason="Missing required secrets: SIGNER_CERT, SIGNER_KEY, SIGNER_KEY_PASSPHRASE"
+          elif ! [[ "$WARNING_DAYS" =~ ^[0-9]+$ ]]; then
+            health_status="invalid_config"
+            health_reason="warning_days must be an integer"
+          else
+            tmp_dir="$(mktemp -d)"
+            trap 'rm -rf "$tmp_dir"' EXIT
+
+            cert_file="$tmp_dir/signer-cert.pem"
+            key_file="$tmp_dir/signer-key.pem"
+
+            printf '%s\n' "$SIGNER_CERT" > "$cert_file"
+            printf '%s\n' "$SIGNER_KEY" > "$key_file"
+
+            if ! openssl x509 -in "$cert_file" -noout >/dev/null 2>&1; then
+              health_status="invalid_cert"
+              health_reason="SIGNER_CERT is not a valid X.509 certificate"
+            elif ! openssl pkey -in "$key_file" -passin "pass:${SIGNER_KEY_PASSPHRASE}" -noout >/dev/null 2>&1; then
+              health_status="invalid_key"
+              health_reason="SIGNER_KEY is invalid or SIGNER_KEY_PASSPHRASE is incorrect"
+            else
+              cert_pub_sha="$(openssl x509 -in "$cert_file" -pubkey -noout \
+                | openssl pkey -pubin -outform der \
+                | openssl dgst -sha256 \
+                | awk '{print $2}')"
+
+              key_pub_sha="$(openssl pkey -in "$key_file" -passin "pass:${SIGNER_KEY_PASSPHRASE}" -pubout -outform der \
+                | openssl dgst -sha256 \
+                | awk '{print $2}')"
+
+              if [[ "$cert_pub_sha" != "$key_pub_sha" ]]; then
+                health_status="cert_key_mismatch"
+                health_reason="SIGNER_CERT and SIGNER_KEY do not match"
+              else
+                not_after="$(openssl x509 -in "$cert_file" -noout -enddate | cut -d= -f2-)"
+                if ! not_after_epoch="$(date -u -d "$not_after" +%s 2>/dev/null)"; then
+                  health_status="invalid_cert_expiry"
+                  health_reason="Could not parse certificate expiry date"
+                else
+                  now_epoch="$(date -u +%s)"
+                  days_left="$(( (not_after_epoch - now_epoch) / 86400 ))"
+
+                  if [[ "$days_left" -lt 0 ]]; then
+                    health_status="expired"
+                    health_reason="Signer certificate is expired"
+                  elif [[ "$days_left" -lt "$WARNING_DAYS" ]]; then
+                    health_status="expiring_soon"
+                    health_reason="Signer certificate is below warning_days threshold"
+                  fi
+                fi
+              fi
+            fi
+          fi
+
+          echo "health_status=$health_status" >> "$GITHUB_OUTPUT"
+          echo "health_reason=$health_reason" >> "$GITHUB_OUTPUT"
+          echo "days_left=$days_left" >> "$GITHUB_OUTPUT"
+          {
+            echo "not_after<<EOF"
+            echo "$not_after"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## Apple signing material status"
+            echo ""
+            echo "- Health status: \`$health_status\`"
+            if [[ -n "$health_reason" ]]; then
+              echo "- Health reason: $health_reason"
+            fi
+            if [[ -n "$not_after" ]]; then
+              echo "- Certificate expires: \`$not_after\`"
+            fi
+            if [[ -n "$days_left" ]]; then
+              echo "- Days remaining: \`$days_left\`"
+            fi
+            echo "- warning_days threshold: \`$WARNING_DAYS\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open or update rotation issue
+        if: ${{ steps.health.outputs.health_status != 'healthy' }}
+        uses: actions/github-script@v7
+        env:
+          HEALTH_STATUS: ${{ steps.health.outputs.health_status }}
+          HEALTH_REASON: ${{ steps.health.outputs.health_reason }}
+          DAYS_LEFT: ${{ steps.health.outputs.days_left }}
+          NOT_AFTER: ${{ steps.health.outputs.not_after }}
+        with:
+          script: |
+            const title = 'Rotate Apple pass signing certificate';
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            const lines = [
+              'Apple pass signing materials need rotation or repair.',
+              '',
+              `- Health status: \`${process.env.HEALTH_STATUS}\``,
+              process.env.HEALTH_REASON ? `- Reason: ${process.env.HEALTH_REASON}` : '',
+              process.env.DAYS_LEFT ? `- Days remaining: \`${process.env.DAYS_LEFT}\`` : '',
+              process.env.NOT_AFTER ? `- Certificate expires: \`${process.env.NOT_AFTER}\`` : '',
+              '',
+              'Rotate with:',
+              '```bash',
+              "scripts/rotate-apple-signer.sh --p12 /path/to/new-cert.p12 --key-passphrase '<new-passphrase>' --trigger-deploy",
+              '```',
+              '',
+              `Workflow run: ${runUrl}`,
+            ].filter(Boolean);
+            const body = lines.join('\n');
+            const { owner, repo } = context.repo;
+
+            const openIssues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: 'open',
+              per_page: 100,
+            });
+            const existing = openIssues.find((issue) => issue.title === title);
+
+            if (existing) {
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: existing.number,
+                body,
+              });
+              core.info(`Updated issue #${existing.number}`);
+            } else {
+              const created = await github.rest.issues.create({
+                owner,
+                repo,
+                title,
+                body,
+              });
+              core.info(`Created issue #${created.data.number}`);
+            }
+
+      - name: Close rotation issue when healthy
+        if: ${{ steps.health.outputs.health_status == 'healthy' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'Rotate Apple pass signing certificate';
+            const { owner, repo } = context.repo;
+            const openIssues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: 'open',
+              per_page: 100,
+            });
+            const existing = openIssues.find((issue) => issue.title === title);
+            if (!existing) {
+              core.info('No open rotation issue to close');
+              return;
+            }
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: existing.number,
+              body: 'Apple signing health check is now healthy. Closing automatically.',
+            });
+            await github.rest.issues.update({
+              owner,
+              repo,
+              issue_number: existing.number,
+              state: 'closed',
+            });
+            core.info(`Closed issue #${existing.number}`);
+
+      - name: Fail when rotation is needed
+        if: ${{ steps.health.outputs.health_status != 'healthy' }}
+        run: |
+          echo "Apple signing check failed: ${{ steps.health.outputs.health_status }}"
+          echo "${{ steps.health.outputs.health_reason }}"
+          exit 1
