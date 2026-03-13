@@ -1,0 +1,26 @@
+name: monitor prod apple passbook
+
+on:
+  workflow_dispatch: {}
+  pull_request:
+    paths:
+      - .github/workflows/prod-monitor.yml
+      - scripts/check-apple-passbook.sh
+      - scripts/test-check-apple-passbook.sh
+      - cloudflare-worker/src/assets/apple-root-ca.pem
+      - cloudflare-worker/src/assets/wwdr.pem
+  schedule:
+    - cron: '0 7 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  monitor:
+    name: Apple Wallet production monitor
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check Apple Wallet production passbook
+        run: ./scripts/check-apple-passbook.sh
