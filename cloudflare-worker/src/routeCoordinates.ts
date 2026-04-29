@@ -128,17 +128,14 @@ function parsePlacemarks(kml: string): Placemark[] {
       : placemark.Point
         ? 'Point'
         : 'Unknown'
+    const geometry = type === 'LineString'
+      ? placemark.LineString as Record<string, unknown>
+      : placemark.Point as Record<string, unknown>
 
     return {
       name: stringValue(placemark.name) || '',
       type,
-      coordinates: parseCoordinateList(
-        stringValue(
-          type === 'LineString'
-            ? (placemark.LineString as Record<string, unknown>)?.coordinates
-            : (placemark.Point as Record<string, unknown>)?.coordinates,
-        ),
-      ),
+      coordinates: parseCoordinateList(stringValue(geometry && geometry.coordinates)),
     }
   })
 }
@@ -151,7 +148,7 @@ export function parseKmlRouteMetadata(
     placemark => placemark.type === 'Point' && /\bfinish\b/i.test(placemark.name) && placemark.coordinates[0],
   )
 
-  if (finish?.coordinates[0]) {
+  if (finish && finish.coordinates[0]) {
     return { coordinate: finish.coordinates[0], source: 'finish' }
   }
 
@@ -159,14 +156,14 @@ export function parseKmlRouteMetadata(
     placemark => placemark.type === 'Point' && /\bstart\b/i.test(placemark.name) && placemark.coordinates[0],
   )
 
-  if (start?.coordinates[0]) {
+  if (start && start.coordinates[0]) {
     return { coordinate: start.coordinates[0], source: 'start' }
   }
 
   const route = placemarks.find(
     placemark => placemark.type === 'LineString' && placemark.coordinates.length > 0,
   )
-  const routeLastCoordinate = route?.coordinates[route.coordinates.length - 1]
+  const routeLastCoordinate = route && route.coordinates[route.coordinates.length - 1]
 
   if (routeLastCoordinate) {
     return { coordinate: routeLastCoordinate, source: 'route-last-coordinate' }
@@ -208,7 +205,8 @@ function eventPoint(event: EventFeature): Coordinate {
 }
 
 function coursePageUrlForEvent(event: EventFeature, countries: Record<string, Country>): string | undefined {
-  const countryUrl = countries[String(event.properties.countrycode)]?.url
+  const country = countries[String(event.properties.countrycode)]
+  const countryUrl = country && country.url
 
   return countryUrl
     ? `https://${countryUrl}/${event.properties.eventname}/course/`

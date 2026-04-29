@@ -38,6 +38,7 @@ module.exports = {
   },
   resolve: {
     extensions: ['.ts', '.js', '.pem', '.png'],
+    mainFields: ['main', 'module'],
   },
   output: {
     filename: 'worker.js',
