@@ -73,6 +73,10 @@ export const getEventsJson = async (): Promise<{ data: EventsJson, etag: string 
 
 export const getLocationMapping = async (): Promise<LocationMapping> => {
   const { data } = await getEventsJson();
+  return createLocationMapping(data);
+};
+
+export const createLocationMapping = (data: EventsJson): LocationMapping => {
   const mapping: LocationMapping = {};
   const features = (data.events && data.events.features) ? data.events.features : [];
   for (let i = 0; i < features.length; i++) {

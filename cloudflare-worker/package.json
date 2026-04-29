@@ -27,6 +27,8 @@
   },
   "dependencies": {
     "buffer": "^6.0.3",
+    "fast-xml-parser": "^4.3.6",
+    "htmlparser2": "^8.0.2",
     "itty-router": "^2.4.10",
     "passkit-generator": "^3.1.4",
     "uuid": "^8.3.2"
