@@ -1,0 +1,39 @@
+name: worker ci
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/worker-ci.yml
+      - cloudflare-worker/**
+      - frontend/src/assets/park_runs.ts
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/worker-ci.yml
+      - cloudflare-worker/**
+      - frontend/src/assets/park_runs.ts
+
+permissions:
+  contents: read
+
+jobs:
+  worker:
+    name: Worker tests and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./cloudflare-worker
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: npm
+          cache-dependency-path: cloudflare-worker/package-lock.json
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run build
