@@ -5,7 +5,11 @@ import icon from './assets/icon.png'
 import { pass } from './assets/pass'
 import wwdrpem from './assets/wwdr.pem'
 import { Router } from 'itty-router'
-import { getLocationMapping, getEventsJson } from './locationMapping'
+import { getEventsJson } from './locationMapping'
+import {
+  resolvePassLocationsForPass,
+  toApplePassLocation,
+} from './routeCoordinates'
 
 const secrets = globalThis as any
 
@@ -33,7 +37,11 @@ router.get('/passbook', async ({ url }) => {
   const locations: string[] = [reqUrl.searchParams.getAll('locations')].flat()
 
   try {
-    const locationMapping = await getLocationMapping()
+    const { data: eventsJson } = await getEventsJson()
+    const resolvedLocations = await resolvePassLocationsForPass(
+      locations,
+      eventsJson,
+    )
 
     const passObj = new PKPass(
       {
@@ -56,13 +64,7 @@ router.get('/passbook', async ({ url }) => {
     )
 
     passObj.setLocations(
-      ...locations
-        .map(locId => locationMapping[locId])
-        .map(location => ({
-          longitude: location.geometry.coordinates[0],
-          latitude: location.geometry.coordinates[1],
-          relevantText: location.properties.EventLongName,
-        })),
+      ...resolvedLocations.map(toApplePassLocation),
     )
     passObj.setBarcodes(
       {
