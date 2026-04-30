@@ -43,6 +43,11 @@ let cachedEventsJson: EventsJson | null = null;
 let cachedEtag: string | null = null;
 const EVENTS_URL = 'https://images.parkrun.com/events.json';
 
+export const resetEventsJsonCache = () => {
+  cachedEventsJson = null;
+  cachedEtag = null;
+};
+
 export const getEventsJson = async (): Promise<{ data: EventsJson, etag: string | null }> => {
   const headers: Record<string, string> = {
     'Accept': 'application/json, text/javascript, */*; q=0.01',

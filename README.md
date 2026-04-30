@@ -34,7 +34,7 @@ Manual (Google console / policy steps):
 
 Scripted (this repo):
 1. Create service account key + enable Wallet API (`scripts/google-wallet/bootstrap-gcp.sh`)
-2. Create the Google Wallet Generic class if missing (`scripts/google-wallet/upsert-class.mjs`, Node 18+)
+2. Create the Google Wallet Generic class if missing (`scripts/google-wallet/upsert-class.mjs`, Node 18+ with script dependencies installed)
 3. Upload Cloudflare Worker secrets (`scripts/google-wallet/set-wrangler-secrets.sh`)
 
 ### Quick start (Google Wallet)
@@ -52,6 +52,7 @@ export KEY_OUT="$HOME/.config/runpass/google-wallet-service-account.json"
 3. Create the Generic class (scripted)
 
 ```bash
+npm ci --prefix ./scripts/google-wallet
 node ./scripts/google-wallet/upsert-class.mjs \
   --service-account-json "$KEY_OUT" \
   --issuer-id "YOUR_GOOGLE_WALLET_ISSUER_ID" \

@@ -1,3 +1,5 @@
+import { XMLParser } from 'fast-xml-parser'
+import { parseDocument } from 'htmlparser2'
 import type { Country, EventFeature, EventsJson } from './locationMapping'
 import { createLocationMapping } from './locationMapping'
 
@@ -35,23 +37,44 @@ type Placemark = {
   coordinates: Coordinate[]
 }
 
-function decodeHtml(value: string): string {
-  return value
-    .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-}
+const kmlParser = new XMLParser({
+  ignoreAttributes: false,
+  trimValues: true,
+})
 
-function readTag(xml: string, tagName: string): string | undefined {
-  const match = xml.match(new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)<\\/${tagName}>`, 'i'))
-
-  if (!match) {
-    return undefined
+function asArray<T>(value: T | T[] | undefined): T[] {
+  if (!value) {
+    return []
   }
 
-  return decodeHtml(match[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim())
+  return Array.isArray(value) ? value : [value]
+}
+
+function stringValue(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined
+}
+
+function collectPlacemarks(node: unknown, placemarks: unknown[] = []): unknown[] {
+  if (!node || typeof node !== 'object') {
+    return placemarks
+  }
+
+  const record = node as Record<string, unknown>
+  for (const placemark of asArray(record.Placemark as unknown | unknown[] | undefined)) {
+    placemarks.push(placemark)
+  }
+
+  for (const value of Object.values(record)) {
+    if (Array.isArray(value)) {
+      for (const entry of value) {
+        collectPlacemarks(entry, placemarks)
+      }
+    } else {
+      collectPlacemarks(value, placemarks)
+    }
+  }
+
+  return placemarks
 }
 
 function parseCoordinateList(raw: string | undefined): Coordinate[] {
@@ -79,30 +102,33 @@ function parseCoordinateList(raw: string | undefined): Coordinate[] {
 }
 
 function parsePlacemarks(kml: string): Placemark[] {
-  if (!/<kml[\s>]/i.test(kml)) {
+  let parsed: unknown
+
+  try {
+    parsed = kmlParser.parse(kml)
+  } catch {
     return []
   }
 
-  const placemarks: Placemark[] = []
-  const placemarkRegex = /<Placemark\b[^>]*>([\s\S]*?)<\/Placemark>/gi
-  let match: RegExpExecArray | null
+  const rawPlacemarks = collectPlacemarks(parsed)
 
-  while ((match = placemarkRegex.exec(kml))) {
-    const placemarkXml = match[1]
-    const type = /<LineString\b/i.test(placemarkXml)
+  return rawPlacemarks.map(rawPlacemark => {
+    const placemark = rawPlacemark as Record<string, unknown>
+    const type = placemark.LineString
       ? 'LineString'
-      : /<Point\b/i.test(placemarkXml)
+      : placemark.Point
         ? 'Point'
         : 'Unknown'
+    const geometry = type === 'LineString'
+      ? placemark.LineString as Record<string, unknown>
+      : placemark.Point as Record<string, unknown>
 
-    placemarks.push({
-      name: readTag(placemarkXml, 'name') || '',
+    return {
+      name: stringValue(placemark.name) || '',
       type,
-      coordinates: parseCoordinateList(readTag(placemarkXml, 'coordinates')),
-    })
-  }
-
-  return placemarks
+      coordinates: parseCoordinateList(stringValue(geometry && geometry.coordinates)),
+    }
+  })
 }
 
 export function parseKmlRouteMetadata(
@@ -140,13 +166,38 @@ export function parseKmlRouteMetadata(
 }
 
 export function extractMapFromCourseHtml(html: string): { mapUrl: string | null; mid: string } | undefined {
-  const decoded = decodeHtml(html)
+  const document = parseDocument(html)
   const urls = new Set<string>()
-  const urlRegex = /https?:\/\/(?:www\.)?google\.com\/maps\/d\/(?:u\/\d+\/)?(?:embed|viewer)\?[^"'<>\s)]+/gi
-  let match: RegExpExecArray | null
 
-  while ((match = urlRegex.exec(decoded))) {
-    urls.add(match[0])
+  function visit(node: unknown) {
+    if (!node || typeof node !== 'object') {
+      return
+    }
+
+    const maybeNode = node as {
+      attribs?: Record<string, string>
+      children?: unknown[]
+    }
+    for (const value of Object.values(maybeNode.attribs || {})) {
+      if (/^https?:\/\/(?:www\.)?google\.com\/maps\/d\/(?:u\/\d+\/)?(?:embed|viewer)\?/i.test(value)) {
+        urls.add(value)
+      }
+    }
+
+    for (const child of maybeNode.children || []) {
+      visit(child)
+    }
+  }
+
+  visit(document)
+
+  if (urls.size === 0) {
+    const urlRegex = /https?:\/\/(?:www\.)?google\.com\/maps\/d\/(?:u\/\d+\/)?(?:embed|viewer)\?[^"'<>\s)]+/gi
+    let match: RegExpExecArray | null
+
+    while ((match = urlRegex.exec(html))) {
+      urls.add(match[0].replace(/&amp;/g, '&'))
+    }
   }
 
   for (const mapUrl of urls) {
@@ -159,7 +210,7 @@ export function extractMapFromCourseHtml(html: string): { mapUrl: string | null;
     } catch {}
   }
 
-  const midMatch = decoded.match(/[?&]mid=([^&"'<>\s)]+)/i)
+  const midMatch = html.replace(/&amp;/g, '&').match(/[?&]mid=([^&"'<>\s)]+)/i)
 
   if (midMatch) {
     return {

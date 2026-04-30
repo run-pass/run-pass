@@ -40,7 +40,7 @@ fi
 if [[ -x "$WORKER_DIR/node_modules/.bin/wrangler" ]]; then
   WRANGLER_CMD="$WORKER_DIR/node_modules/.bin/wrangler"
 else
-  WRANGLER_CMD="npx -y @cloudflare/wrangler@1"
+  WRANGLER_CMD="npx -y wrangler@4"
 fi
 
 SERVICE_ACCOUNT_EMAIL="$(

@@ -55,8 +55,9 @@ Next manual step (cannot be fully scripted):
 1. In Google Pay & Wallet Console, add this service account to your Wallet issuer as a developer/admin.
 
 Then continue with:
-1. scripts/google-wallet/upsert-class.mjs (create/update the Generic class)
-2. scripts/google-wallet/set-wrangler-secrets.sh (upload Worker secrets)
+1. npm ci --prefix scripts/google-wallet
+2. scripts/google-wallet/upsert-class.mjs (create/update the Generic class)
+3. scripts/google-wallet/set-wrangler-secrets.sh (upload Worker secrets)
 
 Service account email:
   $SERVICE_ACCOUNT_EMAIL

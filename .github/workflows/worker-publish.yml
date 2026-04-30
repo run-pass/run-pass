@@ -25,10 +25,12 @@ jobs:
         working-directory: ./cloudflare-worker
 
       - name: Publish
-        uses: cloudflare/wrangler-action@1.3.0
+        uses: cloudflare/wrangler-action@v3
         with:
           workingDirectory: ./cloudflare-worker
           apiToken: ${{ secrets.CF_API_TOKEN }}
+          wranglerVersion: "4"
+          command: deploy --env production
           environment: 'production'
           secrets: |
               SIGNER_CERT
@@ -42,7 +44,6 @@ jobs:
               GOOGLE_WALLET_ALLOWED_ORIGINS
               GOOGLE_WALLET_FRONTEND_URL
         env:
-          NODE_OPTIONS: --openssl-legacy-provider
           SIGNER_CERT: ${{ secrets.SIGNER_CERT }}
           SIGNER_KEY: ${{ secrets.SIGNER_KEY }}
           SIGNER_KEY_PASSPHRASE: ${{ secrets.SIGNER_KEY_PASSPHRASE }}

@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid'
+import { importPKCS8, SignJWT } from 'jose'
 import { getEventsJson } from './locationMapping'
 import type { EventsJson } from './locationMapping'
 import type { ResolvedPassLocation } from './routeCoordinates'
@@ -6,6 +6,7 @@ import {
   resolvePassLocationsForPass,
   toGoogleMerchantLocation,
 } from './routeCoordinates'
+import type { Env } from './bindings'
 
 export const GOOGLE_WALLET_SAVE_URL_PREFIX = 'https://pay.google.com/gp/v/save/'
 const DEFAULT_FRONTEND_URL = 'https://getrunpass.com'
@@ -16,13 +17,14 @@ type PassRequest = {
   locations: string[]
 }
 
-type GoogleWalletSecrets = {
-  GOOGLE_WALLET_SERVICE_ACCOUNT_EMAIL?: string
-  GOOGLE_WALLET_SERVICE_ACCOUNT_PRIVATE_KEY?: string
-  GOOGLE_WALLET_CLASS_ID?: string
-  GOOGLE_WALLET_ALLOWED_ORIGINS?: string
-  GOOGLE_WALLET_FRONTEND_URL?: string
-}
+type GoogleWalletSecrets = Pick<
+  Env,
+  | 'GOOGLE_WALLET_SERVICE_ACCOUNT_EMAIL'
+  | 'GOOGLE_WALLET_SERVICE_ACCOUNT_PRIVATE_KEY'
+  | 'GOOGLE_WALLET_CLASS_ID'
+  | 'GOOGLE_WALLET_ALLOWED_ORIGINS'
+  | 'GOOGLE_WALLET_FRONTEND_URL'
+>
 
 type GoogleWalletConfig = {
   serviceAccountEmail?: string
@@ -40,7 +42,7 @@ type GoogleWalletSaveLinkOptions = {
   nowSeconds?: () => number
 }
 
-let googleWalletPrivateKeyPromise: Promise<CryptoKey> | undefined
+let googleWalletPrivateKeyPromise: Promise<ReturnType<typeof importPKCS8> extends Promise<infer T> ? T : never> | undefined
 let googleWalletPrivateKeyPem: string | undefined
 
 function notEmpty<T>(value: T | null | undefined): value is T {
@@ -68,7 +70,7 @@ export function normalizeGoogleWalletOrigins(originsValue: string | undefined): 
 }
 
 export function getGoogleWalletConfig(
-  source: GoogleWalletSecrets = globalThis as GoogleWalletSecrets,
+  source: GoogleWalletSecrets,
 ): GoogleWalletConfig {
   const serviceAccountEmail = source.GOOGLE_WALLET_SERVICE_ACCOUNT_EMAIL
   const serviceAccountPrivateKey = source.GOOGLE_WALLET_SERVICE_ACCOUNT_PRIVATE_KEY
@@ -107,45 +109,12 @@ function makeLocalizedString(value: string) {
   }
 }
 
-function toBase64Url(input: Uint8Array): string {
-  let binary = ''
-  for (const byte of input) {
-    binary += String.fromCharCode(byte)
-  }
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
-}
-
-function encodeUtf8Base64Url(value: string): string {
-  return toBase64Url(new TextEncoder().encode(value))
-}
-
-function decodePemToBytes(pem: string): Uint8Array {
-  const base64 = pem
-    .replace(/\\n/g, '\n')
-    .replace(/-----BEGIN PRIVATE KEY-----/g, '')
-    .replace(/-----END PRIVATE KEY-----/g, '')
-    .replace(/\s+/g, '')
-
-  const binary = atob(base64)
-  const bytes = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i)
-  }
-  return bytes
-}
-
-async function getGoogleWalletPrivateKey(privateKeyPem: string): Promise<CryptoKey> {
+async function getGoogleWalletPrivateKey(privateKeyPem: string) {
   if (!googleWalletPrivateKeyPromise || googleWalletPrivateKeyPem !== privateKeyPem) {
     googleWalletPrivateKeyPem = privateKeyPem
-    googleWalletPrivateKeyPromise = crypto.subtle.importKey(
-      'pkcs8',
-      decodePemToBytes(privateKeyPem),
-      {
-        name: 'RSASSA-PKCS1-v1_5',
-        hash: 'SHA-256',
-      },
-      false,
-      ['sign'],
+    googleWalletPrivateKeyPromise = importPKCS8(
+      privateKeyPem.replace(/\\n/g, '\n'),
+      'RS256',
     )
   }
 
@@ -156,23 +125,10 @@ export async function signJwt(
   claims: Record<string, unknown>,
   privateKeyPem: string,
 ): Promise<string> {
-  const header = {
-    alg: 'RS256',
-    typ: 'JWT',
-  }
-
-  const encodedHeader = encodeUtf8Base64Url(JSON.stringify(header))
-  const encodedClaims = encodeUtf8Base64Url(JSON.stringify(claims))
-  const signingInput = `${encodedHeader}.${encodedClaims}`
-
   const key = await getGoogleWalletPrivateKey(privateKeyPem)
-  const signature = await crypto.subtle.sign(
-    { name: 'RSASSA-PKCS1-v1_5' },
-    key,
-    new TextEncoder().encode(signingInput),
-  )
-
-  return `${signingInput}.${toBase64Url(new Uint8Array(signature))}`
+  return new SignJWT(claims)
+    .setProtectedHeader({ alg: 'RS256', typ: 'JWT' })
+    .sign(key)
 }
 
 export function buildGoogleWalletObject(
@@ -208,7 +164,7 @@ export function buildGoogleWalletObject(
   ]
 
   return {
-    id: `${classId.split('.')[0]}.runpass-${uuidv4()}`,
+    id: `${classId.split('.')[0]}.runpass-${crypto.randomUUID()}`,
     classId,
     state: 'ACTIVE',
     cardTitle: makeLocalizedString('getrunpass.com'),
@@ -271,9 +227,10 @@ export function buildGoogleWalletClaims(
 
 export async function buildGoogleWalletSaveLink(
   passRequest: PassRequest,
+  env: GoogleWalletSecrets,
   options: GoogleWalletSaveLinkOptions = {},
 ): Promise<string> {
-  const googleWalletConfig = getGoogleWalletConfig(options.secrets)
+  const googleWalletConfig = getGoogleWalletConfig(options.secrets || env)
 
   if (googleWalletConfig.missing.length) {
     throw new Error(

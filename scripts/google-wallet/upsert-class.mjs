@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
-import { readFile } from 'node:fs/promises';
-import { createSign } from 'node:crypto';
+import { GoogleAuth } from 'google-auth-library';
+import { walletobjects } from '@googleapis/walletobjects';
+
+const WALLET_OBJECTS_SCOPE = 'https://www.googleapis.com/auth/wallet_object.issuer';
 
 function parseArgs(argv) {
   const args = {};
@@ -35,123 +37,37 @@ function required(value, label) {
   return value;
 }
 
-function base64UrlEncode(value) {
-  const buffer = Buffer.isBuffer(value) ? value : Buffer.from(value);
-  return buffer
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/g, '');
+function isNotFound(error) {
+  return error && typeof error === 'object' && error.code === 404;
 }
 
-function signJwt(header, claims, privateKey) {
-  const encodedHeader = base64UrlEncode(JSON.stringify(header));
-  const encodedClaims = base64UrlEncode(JSON.stringify(claims));
-  const signingInput = `${encodedHeader}.${encodedClaims}`;
+async function createWalletClient(serviceAccountJsonPath) {
+  const auth = new GoogleAuth({
+    keyFile: serviceAccountJsonPath,
+    scopes: [WALLET_OBJECTS_SCOPE],
+  });
+  const authClient = await auth.getClient();
 
-  const signer = createSign('RSA-SHA256');
-  signer.update(signingInput);
-  signer.end();
-  const signature = signer.sign(privateKey);
-
-  return `${signingInput}.${base64UrlEncode(signature)}`;
+  return walletobjects({
+    version: 'v1',
+    auth: authClient,
+  });
 }
 
-async function fetchJson(url, options = {}) {
-  const response = await fetch(url, options);
-  const text = await response.text();
-  let parsed;
-
+async function getGenericClass(client, classId) {
   try {
-    parsed = text ? JSON.parse(text) : undefined;
-  } catch {
-    parsed = text;
+    const response = await client.genericclass.get({ resourceId: classId });
+    return response.data;
+  } catch (error) {
+    if (isNotFound(error)) {
+      return null;
+    }
+
+    throw error;
   }
-
-  if (!response.ok) {
-    const message = typeof parsed === 'string' ? parsed : JSON.stringify(parsed, null, 2);
-    throw new Error(`HTTP ${response.status} ${response.statusText}\n${message}`);
-  }
-
-  return parsed;
-}
-
-async function getAccessToken(serviceAccount) {
-  const now = Math.floor(Date.now() / 1000);
-  const assertion = signJwt(
-    { alg: 'RS256', typ: 'JWT' },
-    {
-      iss: serviceAccount.client_email,
-      scope: 'https://www.googleapis.com/auth/wallet_object.issuer',
-      aud: 'https://oauth2.googleapis.com/token',
-      iat: now,
-      exp: now + 3600,
-    },
-    serviceAccount.private_key,
-  );
-
-  const body = new URLSearchParams({
-    grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-    assertion,
-  });
-
-  const tokenResponse = await fetchJson('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body,
-  });
-
-  return tokenResponse.access_token;
-}
-
-function authHeaders(accessToken) {
-  return {
-    Authorization: `Bearer ${accessToken}`,
-    'Content-Type': 'application/json',
-  };
-}
-
-async function getGenericClass(accessToken, classId) {
-  const endpoint = `https://walletobjects.googleapis.com/walletobjects/v1/genericClass/${encodeURIComponent(classId)}`;
-  const response = await fetch(endpoint, {
-    headers: authHeaders(accessToken),
-  });
-
-  if (response.status === 404) {
-    return null;
-  }
-
-  const text = await response.text();
-  let parsed;
-  try {
-    parsed = text ? JSON.parse(text) : undefined;
-  } catch {
-    parsed = text;
-  }
-
-  if (!response.ok) {
-    const message = typeof parsed === 'string' ? parsed : JSON.stringify(parsed, null, 2);
-    throw new Error(`HTTP ${response.status} ${response.statusText}\n${message}`);
-  }
-
-  return parsed;
-}
-
-async function createGenericClass(accessToken, payload) {
-  return fetchJson('https://walletobjects.googleapis.com/walletobjects/v1/genericClass', {
-    method: 'POST',
-    headers: authHeaders(accessToken),
-    body: JSON.stringify(payload),
-  });
 }
 
 async function main() {
-  if (typeof fetch !== 'function') {
-    throw new Error('Node.js 18+ is required (global fetch is missing).');
-  }
-
   const args = parseArgs(process.argv.slice(2));
 
   const serviceAccountJsonPath = required(
@@ -164,23 +80,19 @@ async function main() {
   );
   const classSuffix = getArg(args, 'class-suffix', 'runpass.parkrun');
   const reviewStatus = getArg(args, 'review-status', 'UNDER_REVIEW');
-
-  const rawServiceAccount = await readFile(serviceAccountJsonPath, 'utf8');
-  const serviceAccount = JSON.parse(rawServiceAccount);
-
-  if (!serviceAccount.client_email || !serviceAccount.private_key) {
-    throw new Error(`Service account JSON is missing client_email/private_key: ${serviceAccountJsonPath}`);
-  }
-
   const classId = `${issuerId}.${classSuffix}`;
-  const accessToken = await getAccessToken(serviceAccount);
-  const existingClass = await getGenericClass(accessToken, classId);
+
+  const client = await createWalletClient(serviceAccountJsonPath);
+  const existingClass = await getGenericClass(client, classId);
 
   if (!existingClass) {
-    const created = await createGenericClass(accessToken, {
-      id: classId,
-      reviewStatus,
+    const response = await client.genericclass.insert({
+      requestBody: {
+        id: classId,
+        reviewStatus,
+      },
     });
+    const created = response.data;
 
     console.log(`Created Google Wallet Generic class: ${created.id ?? classId}`);
     console.log(`Review status: ${created.reviewStatus ?? reviewStatus}`);
