@@ -1,11 +1,8 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { createRequire } from 'node:module'
 import test from 'node:test'
 import ts from 'typescript'
 import vm from 'node:vm'
-
-const nodeRequire = createRequire(import.meta.url)
 
 function loadRouteCoordinatesModule() {
   const source = readFileSync(new URL('../src/routeCoordinates.ts', import.meta.url), 'utf8')
@@ -34,7 +31,7 @@ function loadRouteCoordinatesModule() {
         }
       }
 
-      return nodeRequire(specifier)
+      throw new Error(`Unexpected require: ${specifier}`)
     },
     setTimeout,
   }
@@ -49,6 +46,7 @@ const {
   resolveEventPassLocation,
   resolvePassLocationsForPass,
   toApplePassLocation,
+  toGoogleMerchantLocation,
 } = loadRouteCoordinatesModule()
 
 function plain(value) {
@@ -221,7 +219,7 @@ test('malformed KML falls back to the events.json point', async () => {
   assert.equal(location.latitude, 51.5)
 })
 
-test('pass location resolver ignores invalid slugs and produces Apple pass coordinates', async () => {
+test('pass location resolver ignores invalid slugs and produces shared Apple/Google coordinates', async () => {
   const event = eventFeature()
   const { routeFetch } = mockFetchByUrl({
     'https://www.parkrun.org.uk/bushy/course/': { body: courseHtml('mid-3') },
@@ -238,5 +236,9 @@ test('pass location resolver ignores invalid slugs and produces Apple pass coord
     longitude: -0.9,
     latitude: 51.9,
     relevantText: 'Bushy parkrun',
+  })
+  assert.deepEqual(plain(toGoogleMerchantLocation(locations[0])), {
+    longitude: -0.9,
+    latitude: 51.9,
   })
 })

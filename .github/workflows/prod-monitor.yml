@@ -1,4 +1,4 @@
-name: monitor prod apple passbook
+name: monitor prod wallet endpoints
 
 on:
   workflow_dispatch: {}
@@ -6,6 +6,7 @@ on:
     paths:
       - .github/workflows/prod-monitor.yml
       - scripts/check-apple-passbook.sh
+      - scripts/check-google-wallet.sh
       - scripts/test-check-apple-passbook.sh
       - cloudflare-worker/src/assets/apple-root-ca.pem
       - cloudflare-worker/src/assets/wwdr.pem
@@ -17,10 +18,16 @@ permissions:
 
 jobs:
   monitor:
-    name: Apple Wallet production monitor
+    name: Wallet production monitor
     runs-on: ubuntu-latest
+    env:
+      GOOGLE_WALLET_MONITOR_ENABLED: ${{ secrets.GOOGLE_WALLET_MONITOR_ENABLED }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Check Apple Wallet production passbook
         run: ./scripts/check-apple-passbook.sh
+
+      - name: Check Google Wallet production redirect
+        if: ${{ env.GOOGLE_WALLET_MONITOR_ENABLED == 'true' }}
+        run: ./scripts/check-google-wallet.sh

@@ -6,6 +6,7 @@ import { pass } from './assets/pass'
 import wwdrpem from './assets/wwdr.pem'
 import { Router } from 'itty-router'
 import { getEventsJson } from './locationMapping'
+import { buildGoogleWalletSaveLink } from './googleWallet'
 import {
   resolvePassLocationsForPass,
   toApplePassLocation,
@@ -20,6 +21,29 @@ const signerKeyPassphrase = secrets.SIGNER_KEY_PASSPHRASE
 
 const router = Router()
 
+type PassRequest = {
+  barcode: string
+  name?: string
+  locations: string[]
+}
+
+function parsePassRequest(reqUrl: URL): PassRequest {
+  const rawBarcode = reqUrl.searchParams.get('barcode')
+  const rawName = reqUrl.searchParams.get('name')
+  const barcode = rawBarcode ? rawBarcode.trim() : undefined
+  const name = rawName && rawName.trim() ? rawName.trim() : undefined
+  const locations = reqUrl.searchParams
+    .getAll('locations')
+    .map(loc => loc.trim())
+    .filter(Boolean)
+
+  if (!barcode) {
+    throw new Error('Missing required query param: barcode')
+  }
+
+  return { barcode, name, locations }
+}
+
 // attach the router "handle" to the event handler
 addEventListener('fetch', event =>
   event.respondWith(router.handle(event.request)),
@@ -31,10 +55,7 @@ router.get('/github', ({ url }) => {
 
 router.get('/passbook', async ({ url }) => {
   const reqUrl = new URL(url)
-
-  const barcode = reqUrl.searchParams.get('barcode')!
-  const name = reqUrl.searchParams.get('name')!
-  const locations: string[] = [reqUrl.searchParams.getAll('locations')].flat()
+  const { barcode, name, locations } = parsePassRequest(reqUrl)
 
   try {
     const { data: eventsJson } = await getEventsJson()
@@ -110,6 +131,25 @@ router.get('/events.json', async (req) => {
     },
   });
 });
+
+router.get('/google-wallet', async ({ url }) => {
+  try {
+    const passRequest = parsePassRequest(new URL(url))
+    const saveLink = await buildGoogleWalletSaveLink(passRequest)
+
+    return Response.redirect(saveLink, 302)
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : 'Failed to create Google Wallet link'
+    const status =
+      message.startsWith('Missing required query param') ||
+      message.startsWith('Google Wallet is not configured')
+        ? 400
+        : 500
+
+    return new Response(message, { status })
+  }
+})
 
 // 404 for everything else
 router.all('*', () => new Response('Not Found.', { status: 404 }))

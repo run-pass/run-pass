@@ -1,5 +1,3 @@
-import { XMLParser } from 'fast-xml-parser'
-import { DomUtils, parseDocument } from 'htmlparser2'
 import type { Country, EventFeature, EventsJson } from './locationMapping'
 import { createLocationMapping } from './locationMapping'
 
@@ -37,6 +35,25 @@ type Placemark = {
   coordinates: Coordinate[]
 }
 
+function decodeHtml(value: string): string {
+  return value
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+}
+
+function readTag(xml: string, tagName: string): string | undefined {
+  const match = xml.match(new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)<\\/${tagName}>`, 'i'))
+
+  if (!match) {
+    return undefined
+  }
+
+  return decodeHtml(match[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim())
+}
+
 function parseCoordinateList(raw: string | undefined): Coordinate[] {
   if (!raw) {
     return []
@@ -61,83 +78,31 @@ function parseCoordinateList(raw: string | undefined): Coordinate[] {
     .filter((coordinate): coordinate is Coordinate => Boolean(coordinate))
 }
 
-function asArray<T>(value: T | T[] | undefined): T[] {
-  if (value === undefined) {
-    return []
-  }
-
-  return Array.isArray(value) ? value : [value]
-}
-
-function stringValue(value: unknown): string | undefined {
-  if (typeof value === 'string' || typeof value === 'number') {
-    return String(value)
-  }
-
-  if (Array.isArray(value)) {
-    return stringValue(value[0])
-  }
-
-  if (value && typeof value === 'object') {
-    const text = (value as Record<string, unknown>)['#text']
-    return stringValue(text)
-  }
-
-  return undefined
-}
-
-function collectPlacemarks(value: unknown, placemarks: Record<string, unknown>[]) {
-  if (Array.isArray(value)) {
-    value.forEach(item => collectPlacemarks(item, placemarks))
-    return
-  }
-
-  if (!value || typeof value !== 'object') {
-    return
-  }
-
-  for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
-    if (key === 'Placemark') {
-      placemarks.push(...asArray(child as Record<string, unknown> | Record<string, unknown>[]))
-    } else {
-      collectPlacemarks(child, placemarks)
-    }
-  }
-}
-
 function parsePlacemarks(kml: string): Placemark[] {
-  let parsed: unknown
-
-  try {
-    parsed = new XMLParser({
-      ignoreAttributes: false,
-      parseTagValue: false,
-      removeNSPrefix: true,
-      trimValues: true,
-    }).parse(kml)
-  } catch {
+  if (!/<kml[\s>]/i.test(kml)) {
     return []
   }
 
-  const placemarkObjects: Record<string, unknown>[] = []
-  collectPlacemarks(parsed, placemarkObjects)
+  const placemarks: Placemark[] = []
+  const placemarkRegex = /<Placemark\b[^>]*>([\s\S]*?)<\/Placemark>/gi
+  let match: RegExpExecArray | null
 
-  return placemarkObjects.map(placemark => {
-    const type = placemark.LineString
+  while ((match = placemarkRegex.exec(kml))) {
+    const placemarkXml = match[1]
+    const type = /<LineString\b/i.test(placemarkXml)
       ? 'LineString'
-      : placemark.Point
+      : /<Point\b/i.test(placemarkXml)
         ? 'Point'
         : 'Unknown'
-    const geometry = type === 'LineString'
-      ? placemark.LineString as Record<string, unknown>
-      : placemark.Point as Record<string, unknown>
 
-    return {
-      name: stringValue(placemark.name) || '',
+    placemarks.push({
+      name: readTag(placemarkXml, 'name') || '',
       type,
-      coordinates: parseCoordinateList(stringValue(geometry && geometry.coordinates)),
-    }
-  })
+      coordinates: parseCoordinateList(readTag(placemarkXml, 'coordinates')),
+    })
+  }
+
+  return placemarks
 }
 
 export function parseKmlRouteMetadata(
@@ -163,7 +128,9 @@ export function parseKmlRouteMetadata(
   const route = placemarks.find(
     placemark => placemark.type === 'LineString' && placemark.coordinates.length > 0,
   )
-  const routeLastCoordinate = route && route.coordinates[route.coordinates.length - 1]
+  const routeLastCoordinate = route
+    ? route.coordinates[route.coordinates.length - 1]
+    : undefined
 
   if (routeLastCoordinate) {
     return { coordinate: routeLastCoordinate, source: 'route-last-coordinate' }
@@ -173,25 +140,32 @@ export function parseKmlRouteMetadata(
 }
 
 export function extractMapFromCourseHtml(html: string): { mapUrl: string | null; mid: string } | undefined {
-  const document = parseDocument(html, { decodeEntities: true })
-  const elements = DomUtils.findAll(
-    node => Boolean(node.attribs),
-    document.children,
-  )
-  const attributeValues = elements.flatMap(element => Object.values(element.attribs || {}))
+  const decoded = decodeHtml(html)
+  const urls = new Set<string>()
+  const urlRegex = /https?:\/\/(?:www\.)?google\.com\/maps\/d\/(?:u\/\d+\/)?(?:embed|viewer)\?[^"'<>\s)]+/gi
+  let match: RegExpExecArray | null
 
-  for (const mapUrl of attributeValues) {
+  while ((match = urlRegex.exec(decoded))) {
+    urls.add(match[0])
+  }
+
+  for (const mapUrl of urls) {
     try {
-      const parsedUrl = new URL(mapUrl)
-      const isGoogleMapsHost = parsedUrl.hostname === 'www.google.com' || parsedUrl.hostname === 'google.com'
-      const isMyMapsPath = parsedUrl.pathname.startsWith('/maps/d/') &&
-        (parsedUrl.pathname.endsWith('/embed') || parsedUrl.pathname.endsWith('/viewer'))
-      const mid = parsedUrl.searchParams.get('mid')
+      const mid = new URL(mapUrl).searchParams.get('mid')
 
-      if (isGoogleMapsHost && isMyMapsPath && mid) {
+      if (mid) {
         return { mapUrl, mid }
       }
     } catch {}
+  }
+
+  const midMatch = decoded.match(/[?&]mid=([^&"'<>\s)]+)/i)
+
+  if (midMatch) {
+    return {
+      mapUrl: null,
+      mid: decodeURIComponent(midMatch[1]),
+    }
   }
 
   return undefined
@@ -206,7 +180,7 @@ function eventPoint(event: EventFeature): Coordinate {
 
 function coursePageUrlForEvent(event: EventFeature, countries: Record<string, Country>): string | undefined {
   const country = countries[String(event.properties.countrycode)]
-  const countryUrl = country && country.url
+  const countryUrl = country ? country.url : undefined
 
   return countryUrl
     ? `https://${countryUrl}/${event.properties.eventname}/course/`
@@ -316,5 +290,12 @@ export function toApplePassLocation(location: ResolvedPassLocation) {
     longitude: location.longitude,
     latitude: location.latitude,
     relevantText: location.relevantText,
+  }
+}
+
+export function toGoogleMerchantLocation(location: ResolvedPassLocation) {
+  return {
+    latitude: location.latitude,
+    longitude: location.longitude,
   }
 }
