@@ -1,17 +1,18 @@
 {
   "compilerOptions": {
     "outDir": "./dist",
-    "module": "commonjs",
-    "target": "es2020",
-    "lib": ["es2020"],
+    "module": "esnext",
+    "target": "es2022",
+    "lib": ["es2022"],
     "alwaysStrict": true,
     "strict": true,
     "preserveConstEnums": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "sourceMap": true,
     "esModuleInterop": true,
-    "types": ["@cloudflare/workers-types"]
+    "skipLibCheck": true,
+    "types": ["@cloudflare/workers-types", "@cloudflare/vitest-pool-workers/types"]
   },
-  "include": ["src", "../frontend/src/assets/park_runs.ts"],
-  "exclude": ["node_modules", "dist", "test"]
+  "include": ["src", "test", "vitest.config.ts", "../frontend/src/assets/park_runs.ts"],
+  "exclude": ["node_modules", "dist"]
 }
