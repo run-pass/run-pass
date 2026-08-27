@@ -1,0 +1,56 @@
+name: publish frontend
+
+# CI-controlled release for the Cloudflare Pages site.
+#
+# This replaces the Pages GitHub integration, which built and deployed on its
+# own. That integration must be disconnected in the Cloudflare dashboard
+# (Workers & Pages -> run-pass-github-io -> Settings -> Builds -> disconnect),
+# otherwise both it and this workflow will deploy on every push to main.
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches:
+      - main
+    paths:
+      - frontend/**
+      - .github/workflows/pages-publish.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-publish
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy frontend to Pages
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 'lts/*'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+        working-directory: ./frontend
+
+      # API_BASE_URL is deliberately unset so the production build targets
+      # https://prod-api.getrunpass.com, matching the previous behaviour.
+      - run: npm run build:prod
+        working-directory: ./frontend
+
+      - name: Deploy to Pages
+        working-directory: ./frontend
+        run: |
+          set -euo pipefail
+          npx wrangler@4 pages deploy dist \
+            --project-name run-pass-github-io \
+            --branch main \
+            --commit-dirty=true
