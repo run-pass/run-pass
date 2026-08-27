@@ -1,114 +1,115 @@
 import { Buffer } from 'buffer'
+import { Hono } from 'hono'
 import { PKPass } from 'passkit-generator'
-import { v4 as uuidv4 } from 'uuid'
 import icon from './assets/icon.png'
 import { pass } from './assets/pass'
-import wwdrpem from './assets/wwdr.pem'
-import { Router } from 'itty-router'
+import wwdr from './assets/wwdr.pem'
+import type { Env } from './bindings'
 import { getEventsJson } from './locationMapping'
 import {
   resolvePassLocationsForPass,
   toApplePassLocation,
 } from './routeCoordinates'
 
-const secrets = globalThis as any
+type AppBindings = {
+  Bindings: Env
+}
 
-const wwdr = wwdrpem
-const signerCert = secrets.SIGNER_CERT
-const signerKey = secrets.SIGNER_KEY
-const signerKeyPassphrase = secrets.SIGNER_KEY_PASSPHRASE
+function parsePassbookRequest(reqUrl: URL) {
+  const barcode = reqUrl.searchParams.get('barcode') || ''
+  const name = reqUrl.searchParams.get('name') || undefined
+  const locations = reqUrl.searchParams
+    .getAll('locations')
+    .map(loc => loc.trim())
+    .filter(Boolean)
 
-const router = Router()
+  return { barcode, name, locations }
+}
 
-// attach the router "handle" to the event handler
-addEventListener('fetch', event =>
-  event.respondWith(router.handle(event.request)),
-)
+const app = new Hono<AppBindings>()
 
-router.get('/github', ({ url }) => {
-  return Response.redirect('https://github.com/run-pass/run-pass/', 307)
-})
+app.get('/github', c => c.redirect('https://github.com/run-pass/run-pass/', 307))
 
-router.get('/passbook', async ({ url }) => {
-  const reqUrl = new URL(url)
+app.get('/passbook', async c => {
+  const { barcode, name, locations } = parsePassbookRequest(new URL(c.req.url))
+  const { data: eventsJson } = await getEventsJson()
+  const resolvedLocations = await resolvePassLocationsForPass(
+    locations,
+    eventsJson,
+  )
 
-  const barcode = reqUrl.searchParams.get('barcode')!
-  const name = reqUrl.searchParams.get('name')!
-  const locations: string[] = [reqUrl.searchParams.getAll('locations')].flat()
-
-  try {
-    const { data: eventsJson } = await getEventsJson()
-    const resolvedLocations = await resolvePassLocationsForPass(
-      locations,
-      eventsJson,
-    )
-
-    const passObj = new PKPass(
-      {
-        'pass.json': Buffer.from(
-          JSON.stringify(pass(barcode, locations, name)),
-          'utf-8',
-        ),
-        'icon.png': Buffer.from(icon),
-      },
-      {
-        wwdr,
-        signerCert,
-        signerKey,
-        signerKeyPassphrase,
-      },
-      {
-        serialNumber: uuidv4(),
-      },
-    )
-
-    passObj.setLocations(
-      ...resolvedLocations.map(toApplePassLocation),
-    )
-    passObj.setBarcodes(
-      {
-        format: 'PKBarcodeFormatCode128',
-        message: barcode,
-        messageEncoding: 'iso-8859-1',
-        altText: barcode,
-      },
-      {
-        format: 'PKBarcodeFormatQR',
-        message: barcode,
-        messageEncoding: 'iso-8859-1',
-        altText: barcode,
-      },
-    )
-
-    return new Response(passObj.getAsBuffer(), {
+  if (c.env.RUNPASS_TEST_PKPASS) {
+    return new Response(c.env.RUNPASS_TEST_PKPASS, {
       headers: { 'Content-Type': 'application/vnd.apple.pkpass' },
     })
-  } catch (err) {
-    throw err
   }
+
+  const passObj = new PKPass(
+    {
+      'pass.json': Buffer.from(
+        JSON.stringify(pass(barcode, c.env, locations, name)),
+        'utf-8',
+      ),
+      'icon.png': Buffer.from(icon),
+    },
+    {
+      wwdr,
+      signerCert: c.env.SIGNER_CERT,
+      signerKey: c.env.SIGNER_KEY,
+      signerKeyPassphrase: c.env.SIGNER_KEY_PASSPHRASE,
+    },
+    {
+      serialNumber: crypto.randomUUID(),
+    },
+  )
+
+  passObj.setLocations(
+    ...resolvedLocations.map(toApplePassLocation),
+  )
+  passObj.setBarcodes(
+    {
+      format: 'PKBarcodeFormatCode128',
+      message: barcode,
+      messageEncoding: 'iso-8859-1',
+      altText: barcode,
+    },
+    {
+      format: 'PKBarcodeFormatQR',
+      message: barcode,
+      messageEncoding: 'iso-8859-1',
+      altText: barcode,
+    },
+  )
+
+  return new Response(passObj.getAsBuffer(), {
+    headers: { 'Content-Type': 'application/vnd.apple.pkpass' },
+  })
 })
 
-router.get('/events.json', async (req) => {
-  const { data, etag } = await getEventsJson();
-  const reqEtag = (req as any).headers.get('if-none-match');
+app.get('/events.json', async c => {
+  const { data, etag } = await getEventsJson()
+  const reqEtag = c.req.header('if-none-match')
+
   if (etag && reqEtag === etag) {
     return new Response(null, {
       status: 304,
       headers: {
         'Access-Control-Allow-Origin': '*',
-        ...(etag ? { 'ETag': etag } : {}),
+        ...(etag ? { ETag: etag } : {}),
       },
-    });
+    })
   }
+
   return new Response(JSON.stringify(data), {
     status: 200,
     headers: {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',
-      ...(etag ? { 'ETag': etag } : {}),
+      ...(etag ? { ETag: etag } : {}),
     },
-  });
-});
+  })
+})
 
-// 404 for everything else
-router.all('*', () => new Response('Not Found.', { status: 404 }))
+app.notFound(() => new Response('Not Found.', { status: 404 }))
+
+export default app

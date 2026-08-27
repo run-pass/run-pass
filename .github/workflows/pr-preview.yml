@@ -1,0 +1,94 @@
+name: pr preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pr-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    name: Deploy PR preview
+    runs-on: ubuntu-latest
+    # Secrets are unavailable to forked PRs, so wrangler would fail on the first
+    # call. Skip rather than fail noisily.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    env:
+      PREVIEW_NAME: runpass-pr-${{ github.event.pull_request.number }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 'lts/*'
+          cache: npm
+          cache-dependency-path: |
+            cloudflare-worker/package-lock.json
+            frontend/package-lock.json
+
+      - run: npm ci
+        working-directory: ./cloudflare-worker
+
+      - name: Deploy preview Worker
+        id: worker
+        working-directory: ./cloudflare-worker
+        env:
+          SIGNER_CERT: ${{ secrets.SIGNER_CERT }}
+          SIGNER_KEY: ${{ secrets.SIGNER_KEY }}
+          SIGNER_KEY_PASSPHRASE: ${{ secrets.SIGNER_KEY_PASSPHRASE }}
+          PASS_TYPE_IDENTIFIER: ${{ secrets.PASS_TYPE_IDENTIFIER }}
+          TEAM_IDENTIFIER: ${{ secrets.TEAM_IDENTIFIER }}
+        run: |
+          set -euo pipefail
+          # The top-level wrangler.toml config declares no route, so a --name
+          # deploy lands on its own workers.dev URL and cannot reach the
+          # prod-api or dev-api hostnames.
+          npx wrangler deploy --name "$PREVIEW_NAME" | tee deploy.log
+          # Secrets must be written against the same overridden name, otherwise
+          # they would land on the Worker named in wrangler.toml.
+          for name in SIGNER_CERT SIGNER_KEY SIGNER_KEY_PASSPHRASE PASS_TYPE_IDENTIFIER TEAM_IDENTIFIER; do
+            printf '%s' "${!name}" | npx wrangler secret put "$name" --name "$PREVIEW_NAME"
+          done
+          url="$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' deploy.log | head -1)"
+          if [ -z "$url" ]; then echo "could not determine preview Worker URL" >&2; exit 1; fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - run: npm ci
+        working-directory: ./frontend
+
+      - name: Build frontend against the preview Worker
+        working-directory: ./frontend
+        env:
+          API_BASE_URL: ${{ steps.worker.outputs.url }}
+        run: npm run build:prod
+
+      - name: Deploy frontend preview to Pages
+        id: pages
+        working-directory: ./frontend
+        run: |
+          set -euo pipefail
+          npx wrangler@4 pages deploy dist \
+            --project-name run-pass-github-io \
+            --branch "pr-${{ github.event.pull_request.number }}" \
+            --commit-dirty=true | tee pages.log
+          url="$(grep -oE 'https://[a-z0-9.-]+\.pages\.dev' pages.log | tail -1)"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Comment preview URLs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          SITE: ${{ steps.pages.outputs.url }}
+          API: ${{ steps.worker.outputs.url }}
+        run: |
+          body="$(printf '### PR preview\n\n| | |\n|---|---|\n| Site | %s |\n| API | %s |\n\nThe site build points at the preview API above, not production.\nBoth are torn down when this PR closes.\n\n<sub>commit %s</sub>' \
+            "$SITE" "$API" "${GITHUB_SHA:0:7}")"
+          gh pr comment "$PR" --edit-last --create-if-none --body "$body" \
+            || gh pr comment "$PR" --body "$body"

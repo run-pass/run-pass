@@ -4,6 +4,6 @@ declare module '*\.pem' {
 }
 
 declare module '*\.png' {
-  const content: string
+  const content: ArrayBuffer
   export default content
 }

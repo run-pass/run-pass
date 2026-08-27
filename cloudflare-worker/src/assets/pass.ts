@@ -1,15 +1,14 @@
 import { PassProps } from "passkit-generator";
+import type { Env } from "../bindings";
 
 function notEmpty<TValue>(value: TValue | null | undefined): value is TValue {
     return value !== null && value !== undefined;
 }
 
-const secrets = globalThis as any;
-
-export const pass: (barcode: string, locations?: string[], name?: string) => PassProps = (barcode, locations, name) => ({
+export const pass: (barcode: string, env: Pick<Env, "PASS_TYPE_IDENTIFIER" | "TEAM_IDENTIFIER">, locations?: string[], name?: string) => PassProps = (barcode, env, locations, name) => ({
     "formatVersion": 1,
-    "passTypeIdentifier": secrets.PASS_TYPE_IDENTIFIER,
-    "teamIdentifier": secrets.TEAM_IDENTIFIER,
+    "passTypeIdentifier": env.PASS_TYPE_IDENTIFIER,
+    "teamIdentifier": env.TEAM_IDENTIFIER,
     "organizationName": "getrunpass.com",
     "description": "Pass for your parkrun barcode",
     "backgroundColor": "rgb(73, 93, 78)",
@@ -33,13 +32,13 @@ export const pass: (barcode: string, locations?: string[], name?: string) => Pas
             {
                 "key": "1",
                 "label": "",
-                dataDetectorTypes: ["PKDataDetectorTypeLink"],
+                dataDetectorTypes: ["PKDataDetectorTypeLink" as const],
                 "value": "If you have issues with the pass, please create an issue or send a contribution on github https://api.getrunpass.com/github or drop me an email at billy.trend@gmail.com"
             },
             {
                 "key": "2",
                 "label": "",
-                dataDetectorTypes: ["PKDataDetectorTypeLink"],
+                dataDetectorTypes: ["PKDataDetectorTypeLink" as const],
                 "value": "Thanks for using runpass! A newer version of the pass may be available so head over to https://getrunpass.com to ensure you have the most up-to-date version."
             },
             locations && locations.length > 0 ? {
