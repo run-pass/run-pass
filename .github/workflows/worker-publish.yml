@@ -21,8 +21,10 @@ jobs:
           cache: npm
           cache-dependency-path: cloudflare-worker/package-lock.json
 
-      - run: npm ci
-        working-directory: ./cloudflare-worker
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          runInstall: true
 
       - name: Publish
         uses: cloudflare/wrangler-action@v4
