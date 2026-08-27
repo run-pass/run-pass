@@ -16,7 +16,7 @@ TEAM_IDENTIFIER = "3DDGXUL6ZC"
 GOOGLE_WALLET_SERVICE_ACCOUNT_EMAIL = "runpass-google-wallet@getrunpass.iam.gserviceaccount.com"
 GOOGLE_WALLET_CLASS_ID = "3388000000023089625.runpass.parkrun"
 GOOGLE_WALLET_FRONTEND_URL = "https://getrunpass.com"
-GOOGLE_WALLET_ALLOWED_ORIGINS = "getrunpass.com,www.getrunpass.com,localhost:8787,localhost:8080"
+GOOGLE_WALLET_ALLOWED_ORIGINS = "getrunpass.com,www.getrunpass.com,run-pass-github-io.pages.dev,localhost:8787,localhost:8080"
 
 [[rules]]
 type = "Text"

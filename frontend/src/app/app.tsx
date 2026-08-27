@@ -6,8 +6,10 @@ import Select from "react-select";
 import "./darkmode.css";
 import { API_BASE } from "../apiBase";
 
-// Flip to true once the Google Wallet issuer has publishing access.
-const GOOGLE_WALLET_LIVE = false;
+// Injected at build time (see webpack.config.js). PR previews set it to "true"
+// so the Android flow can be exercised before the issuer has publishing access;
+// production leaves it unset, so the button stays hidden.
+const GOOGLE_WALLET_LIVE = process.env.GOOGLE_WALLET_LIVE === "true";
 
 type WalletPlatform = "android" | "ios" | "desktop";
 type WalletEndpoint = "passbook" | "google-wallet";

@@ -72,6 +72,9 @@ module.exports = {
       "process.env.API_BASE_URL": JSON.stringify(
         process.env.API_BASE_URL || "https://prod-api.getrunpass.com",
       ),
+      "process.env.GOOGLE_WALLET_LIVE": JSON.stringify(
+        process.env.GOOGLE_WALLET_LIVE || "false",
+      ),
     }),
     new HtmlWebpackPlugin({
       template: "./src/index.html",
