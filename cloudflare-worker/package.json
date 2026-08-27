@@ -14,18 +14,18 @@
   "author": "GitHub <noreply@github.com>",
   "license": "MIT",
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.15.1",
-    "@cloudflare/workers-types": "^4.20260430.1",
-    "prettier": "^1.18.2",
-    "typescript": "~5.8.3",
-    "vitest": "^4.1.5",
-    "wrangler": "^4.86.0"
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "@cloudflare/workers-types": "^5.20260827.1",
+    "prettier": "^3.9.6",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11",
+    "wrangler": "^4.127.0"
   },
   "dependencies": {
     "buffer": "^6.0.3",
-    "fast-xml-parser": "^5.7.2",
-    "hono": "^4.12.16",
+    "fast-xml-parser": "^5.11.1",
+    "hono": "^4.13.5",
     "htmlparser2": "^12.0.0",
-    "passkit-generator": "^3.1.4"
+    "passkit-generator": "^3.5.7"
   }
 }

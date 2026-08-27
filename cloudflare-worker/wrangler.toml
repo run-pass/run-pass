@@ -2,7 +2,7 @@ name = "runpass"
 main = "src/index.ts"
 
 workers_dev = true
-compatibility_date = "2026-04-30"
+compatibility_date = "2026-08-22"
 compatibility_flags = ["nodejs_compat"]
 
 [[rules]]
