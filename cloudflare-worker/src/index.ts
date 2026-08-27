@@ -51,7 +51,6 @@ app.get('/passbook', async c => {
         'utf-8',
       ),
       'icon.png': Buffer.from(icon),
-      thumbnail: Buffer.from(icon),
     },
     {
       wwdr,
