@@ -5,6 +5,7 @@ import icon from './assets/icon.png'
 import { pass } from './assets/pass'
 import wwdr from './assets/wwdr.pem'
 import type { Env } from './bindings'
+import { buildGoogleWalletSaveLink } from './googleWallet'
 import { getEventsJson } from './locationMapping'
 import {
   resolvePassLocationsForPass,
@@ -15,15 +16,40 @@ type AppBindings = {
   Bindings: Env
 }
 
-function parsePassbookRequest(reqUrl: URL) {
-  const barcode = reqUrl.searchParams.get('barcode') || ''
-  const name = reqUrl.searchParams.get('name') || undefined
+type PassRequest = {
+  barcode: string
+  name?: string
+  locations: string[]
+}
+
+function parsePassRequest(reqUrl: URL): PassRequest {
+  const rawBarcode = reqUrl.searchParams.get('barcode')
+  const rawName = reqUrl.searchParams.get('name')
+  const barcode = rawBarcode ? rawBarcode.trim() : undefined
+  const name = rawName && rawName.trim() ? rawName.trim() : undefined
   const locations = reqUrl.searchParams
     .getAll('locations')
     .map(loc => loc.trim())
     .filter(Boolean)
 
+  if (!barcode) {
+    throw new Error('Missing required query param: barcode')
+  }
+
   return { barcode, name, locations }
+}
+
+// Shared by both wallet routes so a bad request is a 400 rather than a 500.
+function walletErrorResponse(err: unknown): Response {
+  const message =
+    err instanceof Error ? err.message : 'Failed to build wallet pass'
+  const status =
+    message.startsWith('Missing required query param') ||
+    message.startsWith('Google Wallet is not configured')
+      ? 400
+      : 500
+
+  return new Response(message, { status })
 }
 
 const app = new Hono<AppBindings>()
@@ -31,7 +57,13 @@ const app = new Hono<AppBindings>()
 app.get('/github', c => c.redirect('https://github.com/run-pass/run-pass/', 307))
 
 app.get('/passbook', async c => {
-  const { barcode, name, locations } = parsePassbookRequest(new URL(c.req.url))
+  let parsed: PassRequest
+  try {
+    parsed = parsePassRequest(new URL(c.req.url))
+  } catch (err) {
+    return walletErrorResponse(err)
+  }
+  const { barcode, name, locations } = parsed
   const { data: eventsJson } = await getEventsJson()
   const resolvedLocations = await resolvePassLocationsForPass(
     locations,
@@ -84,6 +116,17 @@ app.get('/passbook', async c => {
   return new Response(passObj.getAsBuffer(), {
     headers: { 'Content-Type': 'application/vnd.apple.pkpass' },
   })
+})
+
+app.get('/google-wallet', async c => {
+  try {
+    const passRequest = parsePassRequest(new URL(c.req.url))
+    const saveLink = await buildGoogleWalletSaveLink(passRequest, c.env)
+
+    return c.redirect(saveLink, 302)
+  } catch (err) {
+    return walletErrorResponse(err)
+  }
 })
 
 app.get('/events.json', async c => {

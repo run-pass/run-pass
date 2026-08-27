@@ -1,0 +1,18 @@
+{
+  "name": "google-wallet",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Google Wallet setup helpers for run-pass.",
+  "type": "module",
+  "main": "upsert-class.mjs",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@googleapis/walletobjects": "^11.2.0",
+    "google-auth-library": "^10.6.2"
+  }
+}

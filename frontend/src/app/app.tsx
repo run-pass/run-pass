@@ -6,6 +6,26 @@ import Select from "react-select";
 import "./darkmode.css";
 import { API_BASE } from "../apiBase";
 
+// Flip to true once the Google Wallet issuer has publishing access.
+const GOOGLE_WALLET_LIVE = false;
+
+type WalletPlatform = "android" | "ios" | "desktop";
+type WalletEndpoint = "passbook" | "google-wallet";
+
+function getWalletPlatform(): WalletPlatform {
+    const userAgent = navigator.userAgent || "";
+
+    if (/android/i.test(userAgent)) {
+        return "android";
+    }
+
+    if (/iPad|iPhone|iPod/i.test(userAgent)) {
+        return "ios";
+    }
+
+    return "desktop";
+}
+
 export function App() {
     const [parkRunId, setParkRunId] = useState("");
     const [name, setName] = useState("");
@@ -77,11 +97,26 @@ export function App() {
 
     const setToTop10Junior = setToTop10.bind(null, 2)
 
-    const goToPass = () => {
-        const locations: string = selectedLocations.map(d => d.properties.eventname).join("&locations=");
-        console.log(`${API_BASE}/passbook?barcode=A${parkRunId}` + (name ? `&name=${name}` : "") + (locations ? `&locations=${locations}` : ""))
-        window.location.href = `${API_BASE}/passbook?barcode=A${parkRunId}` + (name ? `&name=${name}` : "") + (locations ? `&locations=${locations}` : "")
+    const buildWalletUrl = (endpoint: WalletEndpoint) => {
+        const params = new URLSearchParams();
+        params.set("barcode", `A${parkRunId}`);
+
+        if (name.trim()) {
+            params.set("name", name.trim());
+        }
+
+        selectedLocations.forEach(location => params.append("locations", location.properties.eventname));
+
+        return `${API_BASE}/${endpoint}?${params.toString()}`;
     }
+
+    const goToWallet = (endpoint: WalletEndpoint) => {
+        window.location.href = buildWalletUrl(endpoint);
+    }
+
+    const walletPlatform = getWalletPlatform();
+    const showGoogleWallet = GOOGLE_WALLET_LIVE && walletPlatform !== "ios";
+    const showAppleWallet = walletPlatform !== "android" || !GOOGLE_WALLET_LIVE;
 
     // Custom styles for react-select to support dark mode
     const selectStyles = {
@@ -233,10 +268,19 @@ export function App() {
                 </Row>
                 <Row style={{ marginBottom: "10px" }}>
                     <Col sm={{ span: 12 }}>
-                        <Button
-                            disabled={isLoadingLocations || !parkRunId}
-                            variant="success"
-                            onClick={goToPass}>Generate Pass</Button>
+                        {showAppleWallet && (
+                            <Button
+                                disabled={isLoadingLocations || !parkRunId}
+                                variant="success"
+                                onClick={() => goToWallet("passbook")}>Add to Apple Wallet</Button>
+                        )}
+                        {showGoogleWallet && (
+                            <Button
+                                style={{ marginLeft: showAppleWallet ? "10px" : "0" }}
+                                disabled={isLoadingLocations || !parkRunId}
+                                variant="success"
+                                onClick={() => goToWallet("google-wallet")}>Add to Google Wallet</Button>
+                        )}
                     </Col>
                 </Row>
             </Container >
