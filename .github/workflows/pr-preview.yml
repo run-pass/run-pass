@@ -43,8 +43,7 @@ jobs:
           SIGNER_CERT: ${{ secrets.SIGNER_CERT }}
           SIGNER_KEY: ${{ secrets.SIGNER_KEY }}
           SIGNER_KEY_PASSPHRASE: ${{ secrets.SIGNER_KEY_PASSPHRASE }}
-          PASS_TYPE_IDENTIFIER: ${{ secrets.PASS_TYPE_IDENTIFIER }}
-          TEAM_IDENTIFIER: ${{ secrets.TEAM_IDENTIFIER }}
+          GOOGLE_WALLET_SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.GOOGLE_WALLET_SERVICE_ACCOUNT_PRIVATE_KEY }}
         run: |
           set -euo pipefail
           # The top-level wrangler.toml config declares no route, so a --name
@@ -53,7 +52,7 @@ jobs:
           npx wrangler deploy --name "$PREVIEW_NAME" | tee deploy.log
           # Secrets must be written against the same overridden name, otherwise
           # they would land on the Worker named in wrangler.toml.
-          for name in SIGNER_CERT SIGNER_KEY SIGNER_KEY_PASSPHRASE PASS_TYPE_IDENTIFIER TEAM_IDENTIFIER; do
+          for name in SIGNER_CERT SIGNER_KEY SIGNER_KEY_PASSPHRASE GOOGLE_WALLET_SERVICE_ACCOUNT_PRIVATE_KEY; do
             printf '%s' "${!name}" | npx wrangler secret put "$name" --name "$PREVIEW_NAME"
           done
           url="$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' deploy.log | head -1)"

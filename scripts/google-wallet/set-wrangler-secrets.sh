@@ -72,11 +72,9 @@ wrangler_secret_put() {
 
 echo "Uploading Google Wallet secrets to Cloudflare Worker..."
 echo "Using Wrangler command: $WRANGLER_CMD"
-wrangler_secret_put "GOOGLE_WALLET_SERVICE_ACCOUNT_EMAIL" "$SERVICE_ACCOUNT_EMAIL"
+# Only the private key is a secret. The service-account email, class id, allowed
+# origins and frontend URL are public values and live in wrangler.toml [vars].
 wrangler_secret_put "GOOGLE_WALLET_SERVICE_ACCOUNT_PRIVATE_KEY" "$SERVICE_ACCOUNT_PRIVATE_KEY"
-wrangler_secret_put "GOOGLE_WALLET_CLASS_ID" "$GOOGLE_WALLET_CLASS_ID"
-wrangler_secret_put "GOOGLE_WALLET_ALLOWED_ORIGINS" "$GOOGLE_WALLET_ALLOWED_ORIGINS"
-wrangler_secret_put "GOOGLE_WALLET_FRONTEND_URL" "$GOOGLE_WALLET_FRONTEND_URL"
 
 cat <<EOF
 
