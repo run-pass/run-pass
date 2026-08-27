@@ -50,7 +50,6 @@ router.get('/passbook', async ({ url }) => {
           'utf-8',
         ),
         'icon.png': Buffer.from(icon),
-        thumbnail: Buffer.from(icon),
       },
       {
         wwdr,
