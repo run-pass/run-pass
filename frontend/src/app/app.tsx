@@ -6,11 +6,6 @@ import Select from "react-select";
 import "./darkmode.css";
 import { API_BASE } from "../apiBase";
 
-// Injected at build time (see webpack.config.js). PR previews set it to "true"
-// so the Android flow can be exercised before the issuer has publishing access;
-// production leaves it unset, so the button stays hidden.
-const GOOGLE_WALLET_LIVE = process.env.GOOGLE_WALLET_LIVE === "true";
-
 type WalletPlatform = "android" | "ios" | "desktop";
 type WalletEndpoint = "passbook" | "google-wallet";
 
@@ -117,8 +112,10 @@ export function App() {
     }
 
     const walletPlatform = getWalletPlatform();
-    const showGoogleWallet = GOOGLE_WALLET_LIVE && walletPlatform !== "ios";
-    const showAppleWallet = walletPlatform !== "android" || !GOOGLE_WALLET_LIVE;
+    // Apple Wallet everywhere except Android; Google Wallet everywhere except iOS.
+    // Desktop shows both.
+    const showGoogleWallet = walletPlatform !== "ios";
+    const showAppleWallet = walletPlatform !== "android";
 
     // Custom styles for react-select to support dark mode
     const selectStyles = {
