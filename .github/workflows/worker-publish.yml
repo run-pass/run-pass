@@ -32,15 +32,14 @@ jobs:
           wranglerVersion: "4"
           command: deploy --env production
           environment: 'production'
+          # Only genuine secrets. The public identifiers live in wrangler.toml [vars].
           secrets: |
               SIGNER_CERT
               SIGNER_KEY
               SIGNER_KEY_PASSPHRASE
-              PASS_TYPE_IDENTIFIER
-              TEAM_IDENTIFIER
+              GOOGLE_WALLET_SERVICE_ACCOUNT_PRIVATE_KEY
         env:
           SIGNER_CERT: ${{ secrets.SIGNER_CERT }}
           SIGNER_KEY: ${{ secrets.SIGNER_KEY }}
           SIGNER_KEY_PASSPHRASE: ${{ secrets.SIGNER_KEY_PASSPHRASE }}
-          PASS_TYPE_IDENTIFIER: ${{ secrets.PASS_TYPE_IDENTIFIER }}
-          TEAM_IDENTIFIER: ${{ secrets.TEAM_IDENTIFIER }}
+          GOOGLE_WALLET_SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.GOOGLE_WALLET_SERVICE_ACCOUNT_PRIVATE_KEY }}

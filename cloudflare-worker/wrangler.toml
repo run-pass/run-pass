@@ -5,6 +5,19 @@ workers_dev = true
 compatibility_date = "2026-08-22"
 compatibility_flags = ["nodejs_compat"]
 
+# Public identifiers, not secrets. PASS_TYPE_IDENTIFIER and TEAM_IDENTIFIER are
+# printed in plain text inside every pass we hand to users; the Google Wallet
+# class and service-account email appear in every save JWT. Only the two private
+# keys and the key passphrase are real secrets. Named environments do not
+# inherit top-level vars, so each block repeats them.
+[vars]
+PASS_TYPE_IDENTIFIER = "pass.com.billytrend.get-run-pass"
+TEAM_IDENTIFIER = "3DDGXUL6ZC"
+GOOGLE_WALLET_SERVICE_ACCOUNT_EMAIL = "runpass-google-wallet@getrunpass.iam.gserviceaccount.com"
+GOOGLE_WALLET_CLASS_ID = "3388000000023089625.runpass.parkrun"
+GOOGLE_WALLET_FRONTEND_URL = "https://getrunpass.com"
+GOOGLE_WALLET_ALLOWED_ORIGINS = "getrunpass.com,www.getrunpass.com,run-pass-github-io.pages.dev,localhost:8787,localhost:8080"
+
 [[rules]]
 type = "Text"
 globs = ["**/*.pem"]
@@ -21,8 +34,26 @@ route = "prod-api.getrunpass.com/*"
 logpush = true
 compatibility_flags = ["nodejs_compat"]
 
+[env.production.vars]
+PASS_TYPE_IDENTIFIER = "pass.com.billytrend.get-run-pass"
+TEAM_IDENTIFIER = "3DDGXUL6ZC"
+GOOGLE_WALLET_SERVICE_ACCOUNT_EMAIL = "runpass-google-wallet@getrunpass.iam.gserviceaccount.com"
+GOOGLE_WALLET_CLASS_ID = "3388000000023089625.runpass.parkrun"
+GOOGLE_WALLET_FRONTEND_URL = "https://getrunpass.com"
+GOOGLE_WALLET_ALLOWED_ORIGINS = "getrunpass.com,www.getrunpass.com"
+
+
 [env.development]
 # The route pattern your Workers application will be served at
 route = "dev-api.getrunpass.com/*"
 logpush = true
 compatibility_flags = ["nodejs_compat"]
+
+[env.development.vars]
+PASS_TYPE_IDENTIFIER = "pass.com.billytrend.get-run-pass"
+TEAM_IDENTIFIER = "3DDGXUL6ZC"
+GOOGLE_WALLET_SERVICE_ACCOUNT_EMAIL = "runpass-google-wallet@getrunpass.iam.gserviceaccount.com"
+GOOGLE_WALLET_CLASS_ID = "3388000000023089625.runpass.parkrun"
+GOOGLE_WALLET_FRONTEND_URL = "https://getrunpass.com"
+GOOGLE_WALLET_ALLOWED_ORIGINS = "getrunpass.com,www.getrunpass.com,dev-api.getrunpass.com"
+

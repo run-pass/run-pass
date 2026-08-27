@@ -318,3 +318,10 @@ export function toApplePassLocation(location: ResolvedPassLocation) {
     relevantText: location.relevantText,
   }
 }
+
+export function toGoogleMerchantLocation(location: ResolvedPassLocation) {
+  return {
+    latitude: location.latitude,
+    longitude: location.longitude,
+  }
+}
