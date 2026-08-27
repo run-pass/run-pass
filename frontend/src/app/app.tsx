@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Button, Col, Container, FormControl, InputGroup, Row } from "react-bootstrap";
 import Select from "react-select";
 import "./darkmode.css";
+import { API_BASE } from "../apiBase";
 
 export function App() {
     const [parkRunId, setParkRunId] = useState("");
@@ -17,7 +18,7 @@ export function App() {
         async function fetchLocations() {
             setIsLoadingLocations(true);
             try {
-                const res = await fetch("https://prod-api.getrunpass.com/events.json");
+                const res = await fetch(`${API_BASE}/events.json`);
                 if (!res.ok) throw new Error("Failed to fetch remote events.json");
                 const data = await res.json();
                 // Use data.events.features if present, else fallback
@@ -78,8 +79,8 @@ export function App() {
 
     const goToPass = () => {
         const locations: string = selectedLocations.map(d => d.properties.eventname).join("&locations=");
-        console.log(`https://prod-api.getrunpass.com/passbook?barcode=A${parkRunId}` + (name ? `&name=${name}` : "") + (locations ? `&locations=${locations}` : ""))
-        window.location.href = `https://prod-api.getrunpass.com/passbook?barcode=A${parkRunId}` + (name ? `&name=${name}` : "") + (locations ? `&locations=${locations}` : "")
+        console.log(`${API_BASE}/passbook?barcode=A${parkRunId}` + (name ? `&name=${name}` : "") + (locations ? `&locations=${locations}` : ""))
+        window.location.href = `${API_BASE}/passbook?barcode=A${parkRunId}` + (name ? `&name=${name}` : "") + (locations ? `&locations=${locations}` : "")
     }
 
     // Custom styles for react-select to support dark mode

@@ -4,6 +4,7 @@ const TerserPlugin = require("terser-webpack-plugin");
 const CssMinimizerPlugin = require("css-minimizer-webpack-plugin");
 const path = require("path");
 const RobotstxtPlugin = require("robotstxt-webpack-plugin");
+const webpack = require("webpack");
 
 module.exports = {
   mode: "production", // Enable production optimizations
@@ -65,6 +66,13 @@ module.exports = {
     ],
   },
   plugins: [
+    // Lets CI point a preview build at a preview Worker. Defaults to production
+    // so local builds and any un-configured build behave exactly as before.
+    new webpack.DefinePlugin({
+      "process.env.API_BASE_URL": JSON.stringify(
+        process.env.API_BASE_URL || "https://prod-api.getrunpass.com",
+      ),
+    }),
     new HtmlWebpackPlugin({
       template: "./src/index.html",
       favicon: "./src/assets/favicon.ico",
